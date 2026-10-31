@@ -72,3 +72,103 @@ body,button,input,select{font-family:'GyeonggiTitle','IBM Plex Mono',sans-serif}
 @media(max-width:720px){.completion-recommendations{grid-template-columns:1fr}.mission-progress{padding:12px 0}.mission-progress-meta{font-size:13px}.mission-progress-meta strong{font-size:15px}.game-topline{font-size:12px}.game-round{font-size:12px}.keyboard-hint{font-size:11px;flex-wrap:wrap}.keyboard-hint strong{width:27px;height:27px}.stratagem-display{min-height:390px}.stratagem-display h2{font-size:32px}.stratagem-display>p{font-size:13px}.metric-label{font-size:13px}.metric-foot{font-size:11px}.completion-setting{padding:17px}.completion-setting h3{font-size:21px}}
 
 .completion-progress{max-width:620px;margin:18px auto 8px;text-align:left}.completion-progress .mission-progress{padding:0;margin:0}
+
+
+/* 2.2 completion report, configurable round count, and aggregate performance */
+.completion-panel{
+  width:100%;max-width:none;min-height:0;display:block;text-align:left;
+  align-items:stretch;justify-content:flex-start;padding:clamp(18px,2.2vw,30px);
+}
+.completion-layout{
+  display:grid;grid-template-columns:minmax(0,1.08fr) minmax(320px,.92fr);
+  gap:18px;align-items:start;width:100%;
+}
+.completion-report{
+  min-width:0;border:1px solid var(--line);background:rgba(13,14,14,.38);
+  padding:clamp(18px,2vw,28px);text-align:center;
+}
+.completion-report .result-stamp{margin:12px auto 25px}
+.completion-report>h2{font-size:clamp(25px,2.5vw,34px);line-height:1.25}
+.completion-report .result-time{margin:8px 0 18px}
+.completion-report .result-grid{
+  width:100%;max-width:none;grid-template-columns:repeat(2,minmax(0,1fr));
+  margin:0 0 22px;
+}
+.completion-report .result-grid>div{min-width:0;padding:15px 10px}
+.completion-report .result-grid span{font-size:13px;line-height:1.5}
+.completion-report .result-grid strong{font-size:clamp(18px,2vw,24px)}
+.session-detail{text-align:left;border:1px solid var(--line);background:#1C1D1F;padding:16px}
+.session-detail-heading{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.session-detail-heading>strong{font-size:18px}
+.session-detail-list{max-height:290px;overflow:auto}
+.session-detail-row{
+  display:grid;grid-template-columns:36px minmax(0,1fr) 78px 54px;gap:8px;
+  align-items:center;padding:10px 4px;border-top:1px solid rgba(224,224,224,.09);
+  font-size:13px;
+}
+.session-detail-number{color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.session-detail-name{font-weight:600;overflow-wrap:anywhere}
+.session-detail-time{color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
+.session-detail-accuracy{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.completion-recommendations{display:flex;flex-direction:column;gap:14px;margin:0;min-width:0}
+.completion-setting{padding:22px;text-align:left}
+.completion-setting h3{line-height:1.35}
+.count-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+.count-options button{min-height:46px;font-size:17px;font-weight:700}
+.custom-count-row{
+  display:grid;grid-template-columns:auto minmax(70px,1fr) auto;gap:8px;
+  align-items:center;margin-top:15px;
+}
+.custom-count-row label{font-size:14px;color:var(--muted);white-space:nowrap}
+.custom-count-row input{
+  width:100%;min-width:0;min-height:43px;padding:8px 11px;
+  border:1px solid var(--line);background:#0D0E0E;color:var(--text);
+  font-size:16px;font-variant-numeric:tabular-nums;
+}
+.custom-count-row input:focus{outline:1px solid var(--accent);border-color:var(--accent)}
+.custom-count-row button{
+  min-height:43px;padding:0 13px;border:1px solid var(--accent);
+  background:rgba(255,233,0,.1);color:var(--accent);font-size:14px;font-weight:700;
+}
+.count-input-hint,.count-input-message{font-size:12px!important;line-height:1.6;margin:9px 0 0!important}
+.count-input-message{color:var(--accent)!important}
+.completion-panel .result-actions{justify-content:flex-end;margin-top:18px}
+.completion-warning{padding:12px 15px;border:1px solid rgba(255,233,0,.35);background:rgba(255,233,0,.06)}
+.record-overview{grid-template-columns:repeat(4,minmax(0,1fr))}
+.overview-card strong{font-size:clamp(24px,2.4vw,34px);overflow-wrap:anywhere}
+.fastest-section{margin:0 0 28px}
+.fastest-heading{margin-bottom:13px}
+.fastest-heading h2{font-family:'GyeonggiTitle','Barlow Condensed',sans-serif;font-size:25px;margin:7px 0 0}
+.fastest-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fastest-card{
+  position:relative;border:1px solid var(--line);background:#1C1D1F;padding:19px 20px;
+  min-width:0;
+}
+.fastest-rank{position:absolute;right:16px;top:13px;color:var(--accent);font:700 22px 'Rajdhani'}
+.fastest-icon{display:block;color:var(--accent);font-size:25px;margin-bottom:7px}
+.fastest-card h3{font-family:'GyeonggiTitle',sans-serif;font-size:21px;margin:0 0 15px}
+.fastest-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.fastest-stats>div{display:flex;flex-direction:column;gap:5px}
+.fastest-stats strong{font:700 23px 'Rajdhani';color:var(--accent)}
+.fastest-stats span{font-size:13px;color:var(--muted)}
+.fastest-empty{border:1px dashed var(--line);padding:20px;color:var(--muted);font-size:14px}
+.record-table{min-width:940px}
+@media(max-width:900px){
+  .completion-layout{grid-template-columns:1fr}
+  .completion-recommendations{display:grid;grid-template-columns:1fr 1fr}
+}
+@media(max-width:720px){
+  .completion-panel{padding:12px}
+  .completion-layout{grid-template-columns:minmax(0,1fr);gap:12px}
+  .completion-recommendations{display:flex}
+  .completion-report{padding:16px 12px}
+  .completion-report .result-grid{grid-template-columns:1fr 1fr}
+  .session-detail-row{grid-template-columns:27px minmax(0,1fr) 65px 45px;gap:5px;font-size:11px}
+  .custom-count-row{grid-template-columns:1fr 1fr}
+  .custom-count-row label{grid-column:1/-1}
+  .custom-count-row button{grid-column:1/-1}
+  .record-overview{grid-template-columns:1fr 1fr}
+  .fastest-grid{grid-template-columns:1fr}
+  .completion-panel .result-actions{justify-content:stretch}
+  .completion-panel .result-actions .btn{flex:1 1 100%}
+}
