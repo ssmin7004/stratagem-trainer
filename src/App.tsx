@@ -70,6 +70,7 @@ function App() {
   const [roundTimes,setRoundTimes] = useState<{id:string;time:number;errors:number;inputs:number}[]>([]);
   const [lastResult,setLastResult] = useState<{time:number;errors:number;inputs:number;id:string;newRecord:boolean}|null>(null);
   const [notice,setNotice] = useState("");
+  const [showMobileNotice,setShowMobileNotice] = useState(false);
   const countdownTimer = useRef<number|undefined>(undefined);
   const startTimeRef = useRef<number|null>(null);
   const sessionStartedRef = useRef<number|null>(null);
@@ -99,6 +100,16 @@ function App() {
     setTrainingCount(parsed); setCountDraft(String(parsed));
     setCountDraftMessage(`${parsed}회 출제 횟수를 확정했습니다. 선택된 스트라타젬에서 무작위로 반복 출제됩니다.`);
   };
+
+  useEffect(()=>{
+    const mobileUA = /Android|iPhone|iPod|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent);
+    const iPadOS = /Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+    const compactTouchDevice = navigator.maxTouchPoints > 1 && window.matchMedia("(max-width: 900px)").matches;
+    const isMobileDevice = mobileUA || iPadOS || compactTouchDevice;
+    let alreadyDismissed = false;
+    try { alreadyDismissed = sessionStorage.getItem("stratagem-mobile-notice-dismissed") === "1"; } catch {}
+    if (isMobileDevice && !alreadyDismissed) setShowMobileNotice(true);
+  }, []);
 
   useEffect(()=>{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -521,6 +532,24 @@ function App() {
     </div>
     <footer className="footer"><span>STRATAGEM TRAINER <b>•</b> FAN-MADE TRAINING PROJECT</span><span>본 프로젝트는 Arrowhead Game Studios 및 Sony와 무관한 팬 제작 프로젝트입니다.</span></footer>
     {notice&&<div className="toast" onClick={()=>setNotice("")}>{notice}<X size={14}/></div>}
+    {showMobileNotice&&<div className="mobile-notice-backdrop" role="presentation">
+      <section className="mobile-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="mobile-notice-title">
+        <div className="mobile-notice-topline"><span>SUPER EARTH / SYSTEM NOTICE</span><span className="mobile-notice-symbol" aria-hidden="true">!</span></div>
+        <div className="mobile-notice-divider"/>
+        <div className="mobile-notice-kicker">DEVICE COMPATIBILITY WARNING</div>
+        <h2 id="mobile-notice-title">PC 환경에 최적화된 사이트입니다.</h2>
+        <p>본 훈련 시뮬레이터는 PC 환경을 기준으로 제작되었습니다.</p>
+        <p className="mobile-notice-muted">모바일 기기에서는 화면 배치 및 키보드 입력 기능이 정상적으로 작동하지 않을 수 있습니다.</p>
+        <div className="mobile-notice-recommendation">
+          <span className="mobile-notice-monitor" aria-hidden="true">▣</span>
+          <div><strong>권장 환경</strong><small>PC · 키보드 · Chrome 또는 Edge</small></div>
+        </div>
+        <button className="mobile-notice-confirm" onClick={()=>{
+          try { sessionStorage.setItem("stratagem-mobile-notice-dismissed","1"); } catch {}
+          setShowMobileNotice(false);
+        }}>확인했습니다</button>
+      </section>
+    </div>}
   </div>;
 }
 export default App;
