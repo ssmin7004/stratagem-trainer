@@ -40,6 +40,7 @@ function App() {
   const [soundEnabled,setSoundEnabled] = useState<boolean>(saved.settings?.soundEnabled ?? false);
   const [animationEnabled,setAnimationEnabled] = useState<boolean>(saved.settings?.animationEnabled ?? true);
   const [selected,setSelected] = useState<string[]>(saved.selectedStratagems || stratagems.map(s=>s.id));
+  const [trainingCount,setTrainingCount] = useState<number>(saved.trainingCount || 10);
   const [records,setRecords] = useState<Record<string,RecordItem>>(saved.records || {});
   const [search,setSearch] = useState("");
   const [categoryFilter,setCategoryFilter] = useState("ALL");
@@ -59,19 +60,21 @@ function App() {
   const [notice,setNotice] = useState("");
   const countdownTimer = useRef<number|undefined>(undefined);
   const startTimeRef = useRef<number|null>(null);
+  const sessionStartedRef = useRef<number|null>(null);
+  const pausedAtRef = useRef<number|null>(null);
   const activeStratagem = stratagems.find(s=>s.id===activeId) || stratagems[0];
   const available = stratagems.filter(s=>selected.includes(s.id));
   const accuracy = totalInputs ? Math.max(0,((totalInputs-errors)/totalInputs)*100) : 100;
 
   useEffect(()=>{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      settings:{theme,soundEnabled,animationEnabled}, selectedStratagems:selected, records
+      settings:{theme,soundEnabled,animationEnabled}, selectedStratagems:selected, trainingCount, records
     }));
-  },[theme,soundEnabled,animationEnabled,selected,records]);
+  },[theme,soundEnabled,animationEnabled,selected,trainingCount,records]);
 
   useEffect(()=>{
     if (gameState!=="playing" || startedAt===null) return;
-    const tick=()=>setElapsed(performance.now()-startedAt);
+    const tick=()=>setElapsed(performance.now()-(sessionStartedRef.current ?? startedAt));
     tick();
     const id=window.setInterval(tick,40);
     return ()=>window.clearInterval(id);
@@ -83,23 +86,26 @@ function App() {
   };
   useEffect(()=>()=>clearCountdown(),[]);
   const beginRun = useCallback((ids:string[], selectedMode:Mode)=>{
-    if (!ids.length) { setNotice("LOADOUT에서 스트라타젬을 하나 이상 선택해야 합니다."); setPage("loadout"); return; }
-    const shuffled=[...ids];
-    if (selectedMode==="challenge") {
-      for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+    const targetCount = selectedMode === "practice" ? trainingCount : 20;
+    if (ids.length < targetCount) {
+      setNotice(`훈련 ${targetCount}개를 진행하려면 스트라타젬을 ${targetCount}개 이상 선택해야 합니다.`);
+      setPage("loadout");
+      return;
     }
-    const list=selectedMode==="practice"?[ids[0]]:shuffled.slice(0,Math.min(20,shuffled.length));
+    const shuffled=[...ids];
+    for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+    const list=shuffled.slice(0,targetCount);
     setMode(selectedMode); setRoundList(list); setRoundIndex(0); setRoundTimes([]);
     setActiveId(list[0]); setSequenceIndex(0); setErrors(0); setTotalInputs(0);
-    setElapsed(0); setStartedAt(null); startTimeRef.current=null; setLastResult(null);
+    setElapsed(0); setStartedAt(null); startTimeRef.current=null; sessionStartedRef.current=null; pausedAtRef.current=null; setLastResult(null);
     setCountdown(3); setGameState("countdown"); setPage("training");
     clearCountdown();
     let n=3;
     countdownTimer.current=window.setInterval(()=>{
       n-=1; setCountdown(n);
-      if(n<=0){clearCountdown();const now=performance.now();startTimeRef.current=now;setStartedAt(now);setGameState("playing");}
+      if(n<=0){clearCountdown();const now=performance.now();startTimeRef.current=now;sessionStartedRef.current=now;setStartedAt(now);setGameState("playing");}
     },750);
-  },[]);
+  },[trainingCount]);
   const updateRecord = useCallback((id:string,time:number,err:number,inputs:number)=>{
     const acc=inputs?Math.max(0,((inputs-err)/inputs)*100):100;
     setRecords(prev=>{
@@ -125,8 +131,11 @@ function App() {
     const nextTimes=[...roundTimes,item];
     setRoundTimes(nextTimes);
     setLastResult({time,errors:currentErrors,inputs:currentInputs,id,newRecord});
-    if(mode==="practice"){setElapsed(time);setGameState("result");return;}
-    if(roundIndex+1>=roundList.length){setElapsed(time);setGameState("finished");return;}
+    if(roundIndex+1>=roundList.length){
+      setElapsed(sessionStartedRef.current===null?time:now-sessionStartedRef.current);
+      setGameState("finished");
+      return;
+    }
     const nextIndex=roundIndex+1;
     setRoundIndex(nextIndex);setActiveId(roundList[nextIndex]);
     setSequenceIndex(0);setErrors(0);setTotalInputs(0);
@@ -148,7 +157,7 @@ function App() {
       if(target && (["INPUT","TEXTAREA","SELECT"].includes(target.tagName)||target.isContentEditable)) return;
       const dir=keyFor[e.key.toLowerCase()];
       if(!dir) {
-        if(e.code==="Space" && page==="training" && gameState==="idle"){e.preventDefault();beginRun(mode==="practice"?[activeId]:available.map(s=>s.id),mode);}
+        if(e.code==="Space" && page==="training" && gameState==="idle"){e.preventDefault();beginRun(available.map(s=>s.id),mode);}
         return;
       }
       e.preventDefault();
@@ -159,10 +168,22 @@ function App() {
   },[page,gameState,handleDirection,beginRun,mode,activeId,available]);
 
   const pause=()=>{
-    if(gameState==="playing"){setElapsed(performance.now()-(startTimeRef.current||performance.now()));setGameState("paused");}
-    else if(gameState==="paused"){const now=performance.now();startTimeRef.current=now-elapsed;setStartedAt(startTimeRef.current);setGameState("playing");}
+    if(gameState==="playing"){
+      const now=performance.now();
+      setElapsed(now-(sessionStartedRef.current??startTimeRef.current??now));
+      pausedAtRef.current=now;
+      setGameState("paused");
+    } else if(gameState==="paused"){
+      const now=performance.now();
+      const pauseDuration=pausedAtRef.current===null?0:now-pausedAtRef.current;
+      if(sessionStartedRef.current!==null) sessionStartedRef.current+=pauseDuration;
+      if(startTimeRef.current!==null) startTimeRef.current+=pauseDuration;
+      pausedAtRef.current=null;
+      setStartedAt(startTimeRef.current);
+      setGameState("playing");
+    }
   };
-  const restart=()=>beginRun(mode==="practice"?[activeId]:available.map(s=>s.id),mode);
+  const restart=()=>beginRun(available.map(s=>s.id),mode);
   const filtered = stratagems.filter(s=>
     (categoryFilter==="ALL"||s.category===categoryFilter) &&
     (s.name.toLowerCase().includes(search.toLowerCase())||s.category.toLowerCase().includes(search.toLowerCase()))
@@ -179,7 +200,7 @@ function App() {
         <div className="brand-mark"><Shield size={22}/></div>
         <div><div className="brand-title">STRATAGEM<span> / </span>TRAINER</div><div className="brand-sub">SUPER EARTH TACTICAL TRAINING DIVISION</div></div>
       </div>
-      <div className="top-status"><span className="status-dot"/> 시스템 가동 중 <span className="top-divider"/> PC 훈련 버전 <span className="top-divider"/> V1.0.0</div>
+      <div className="top-status"><span className="status-dot"/> 시스템 가동 중 <span className="top-divider"/> PC 훈련 버전 <span className="top-divider"/> V2.1.0</div>
     </header>
 
     <div className="shell">
@@ -207,7 +228,7 @@ function App() {
               <h1>호출하라.<br/><em>정확하게 실행하라.</em></h1>
               <p className="hero-desc">스트라타젬 입력 훈련 시뮬레이터. 반응 속도를 단련하고 모든 입력 순서를 숙달하라.</p>
               <div className="hero-actions">
-                <button className="btn btn-primary" onClick={()=>{setMode("practice");setPage("training");beginRun([available[0]?.id||stratagems[0].id],"practice");}}><Play size={16} fill="currentColor"/> 훈련 시작</button>
+                <button className="btn btn-primary" onClick={()=>{setMode("practice");setPage("training");beginRun(available.map(s=>s.id),"practice");}}><Play size={16} fill="currentColor"/> 훈련 시작</button>
                 <button className="btn btn-secondary" onClick={()=>setPage("loadout")}><ListChecks size={16}/> 훈련 목록 편성</button>
               </div>
               <div className="hero-meta"><span><Keyboard size={14}/> WASD INPUT</span><span><Activity size={14}/> LIVE TIMING</span><span><Medal size={14}/> 개인 전적</span></div>
@@ -229,7 +250,7 @@ function App() {
           <div className="section-heading"><div><span className="section-index">01 / SELECT PROTOCOL</span><h2>훈련 프로토콜 선택</h2></div><span className="heading-rule"/></div>
           <div className="mode-cards">
             <button className="mode-card" onClick={()=>{setMode("practice");setPage("loadout");}}>
-              <div className="mode-icon"><Crosshair size={24}/></div><div className="mode-tag">정밀 훈련</div><h3>개별 훈련</h3><p>스트라타젬 하나를 선택해 입력 순서를 반복 숙달한다.</p><span className="mode-link">스트라타젬 선택 <ChevronRight size={15}/></span>
+              <div className="mode-icon"><Crosshair size={24}/></div><div className="mode-tag">기본 훈련</div><h3>기본 훈련 · 10개</h3><p>무작위 스트라타젬 10개를 연속으로 호출하고 입력 숙련도를 높인다.</p><span className="mode-link">기본 훈련 설정 <ChevronRight size={15}/></span>
             </button>
             <button className="mode-card" onClick={()=>{setMode("challenge");beginRun(available.map(s=>s.id),"challenge");}}>
               <div className="mode-icon"><Zap size={24}/></div><div className="mode-tag">전투 준비 태세</div><h3>연속 작전</h3><p>무작위 스트라타젬 20개를 연속으로 호출하라.</p><span className="mode-link">연속 작전 시작 <ChevronRight size={15}/></span>
@@ -238,33 +259,41 @@ function App() {
         </section>}
 
         {page==="training"&&<section className="page training-page">
-          <div className="page-heading"><div><span className="section-index">FIELD SIMULATION / 02</span><h1>TRAINING <em>GROUND</em></h1><p>Execute the sequence. Complete the call-in. Stay sharp, Helldiver.</p></div><div className="mode-pill">{mode==="practice"?"정밀 훈련":"전투 준비 태세"}</div></div>
+          <div className="page-heading"><div><span className="section-index">FIELD SIMULATION / 02</span><h1>TRAINING <em>GROUND</em></h1><p>호출 순서를 정확하게 입력하고 작전 절차를 완료하십시오.</p></div><div className="mode-pill">{mode==="practice"?"기본 훈련":"연속 작전"}</div></div>
           {(gameState==="idle")?<div className="prestart-panel">
-            <div className="prestart-icon"><Crosshair size={42}/></div><span className="section-index">SIMULATION READY</span><h2>AWAITING DEPLOYMENT</h2><p>{mode==="practice"?"Select a stratagem from your loadout to begin individual training.":"A randomized sequence of up to ten selected stratagems will be deployed."}</p>
-            <button className="btn btn-primary" onClick={()=>beginRun(mode==="practice"?[activeId]:available.map(s=>s.id),mode)}><Play size={16} fill="currentColor"/> INITIATE SIMULATION</button>
-            <button className="text-button" onClick={()=>setPage("loadout")}>CONFIGURE 스트라타젬 훈련 목록</button>
-          </div>:gameState==="countdown"?<div className="countdown-panel"><span className="section-index">GET READY</span><div className="countdown-number">{countdown}</div><h2>PREPARE TO DEPLOY</h2><p>WASD INPUT / STAND BY</p></div>:gameState==="result"||gameState==="finished"?<div className="result-panel">
-            <div className="result-stamp"><Trophy size={28}/></div><span className="section-index">{gameState==="finished"?"CHALLENGE COMPLETE":"STRATAGEM DEPLOYED"}</span><h2>{gameState==="finished"?"MISSION ACCOMPLISHED":"SEQUENCE COMPLETE"}</h2>
-            <div className="result-time">{formatTime(lastResult?.time??elapsed)}<small>SEC</small></div>
-            <div className="result-grid"><div><span>입력 오류</span><strong>{lastResult?.errors??errors}</strong></div><div><span>정확도</span><strong>{lastResult?.inputs?`${Math.round((lastResult.inputs-(lastResult.errors||0))/lastResult.inputs*100)}%`:"100%"}</strong></div><div><span>RECORD STATUS</span><strong className="record-status">{lastResult?.newRecord?"NEW BEST":"RECORDED"}</strong></div></div>
-            {mode==="challenge"&&<div className="challenge-summary">{roundList.length} STRATAGEMS / {roundTimes.length+(gameState==="finished"?1:0)} COMPLETED</div>}
-            <div className="result-actions"><button className="btn btn-primary" onClick={restart}><RotateCcw size={16}/> PLAY AGAIN</button><button className="btn btn-secondary" onClick={()=>setPage("records")}><Trophy size={16}/> VIEW RECORDS</button><button className="btn btn-quiet" onClick={()=>setPage("home")}>MAIN MENU</button></div>
+            <div className="prestart-icon"><Crosshair size={42}/></div><span className="section-index">시뮬레이션 대기</span><h2>작전 시작 대기 중</h2><p>{mode==="practice"?`선택한 목록에서 무작위 ${trainingCount}개를 연속 훈련합니다.`:"선택한 목록에서 무작위 20개를 연속 훈련합니다."}</p>
+            <button className="btn btn-primary" onClick={()=>beginRun(available.map(s=>s.id),mode)}><Play size={16} fill="currentColor"/> 훈련 시작</button>
+            <button className="text-button" onClick={()=>setPage("loadout")}> 훈련 목록 편성</button>
+          </div>:gameState==="countdown"?<div className="countdown-panel"><span className="section-index">훈련 준비</span><div className="countdown-number">{countdown}</div><h2>호출 준비</h2><p>WASD 입력 대기</p></div>:gameState==="result"||gameState==="finished"?<div className="result-panel completion-panel">
+            <div className="result-stamp"><Trophy size={28}/></div><span className="section-index">훈련 완료 보고</span><h2>모든 호출 절차를 완료했습니다.</h2>
+            <div className="result-time">{formatTime(elapsed)}<small>초</small></div><div className="completion-progress"><div className="mission-progress-meta"><span>작전 완료율</span><strong>100%</strong></div><div className="mission-progress-track"><i style={{width:"100%"}}/></div></div>
+            <div className="result-grid"><div><span>완료한 스트라타젬</span><strong>{roundTimes.length} / {roundList.length}</strong></div><div><span>총 입력 오류</span><strong>{roundTimes.reduce((n,r)=>n+r.errors,0)}</strong></div><div><span>평균 정확도</span><strong>{Math.round(roundTimes.reduce((n,r)=>n+(r.inputs?((r.inputs-r.errors)/r.inputs)*100:100),0)/Math.max(1,roundTimes.length))}%</strong></div></div>
+            <div className="completion-recommendations">
+              <div className="completion-setting"><span className="section-index">추천 설정 01</span><h3>훈련 스트라타젬 개수 설정</h3><p>다음 기본 훈련에서 출제할 개수를 선택합니다.</p><div className="count-options">{[5,10,15,20].map(n=><button key={n} className={trainingCount===n?"chosen":""} onClick={()=>setTrainingCount(n)}>{n}개</button>)}</div></div>
+              <div className="completion-setting"><span className="section-index">추천 설정 02</span><h3>등장할 스트라타젬 선택</h3><p>훈련에 포함할 장비 목록을 직접 편성합니다.</p><div className="selection-summary"><strong>{selected.length} / {stratagems.length}</strong><span>개 선택됨</span></div><button className="btn btn-secondary full-width" onClick={()=>setPage("loadout")}><ListChecks size={16}/> 스트라타젬 목록 편성</button></div>
+            </div>
+            {selected.length<trainingCount&&<p className="completion-warning">현재 선택한 스트라타젬은 {selected.length}개입니다. {trainingCount}개 훈련을 시작하려면 목록에서 더 선택해야 합니다.</p>}
+            <div className="result-actions"><button className="btn btn-primary" disabled={selected.length<trainingCount} onClick={()=>beginRun(available.map(s=>s.id),"practice")}><RotateCcw size={16}/> 다음 기본 훈련 시작</button><button className="btn btn-secondary" onClick={()=>beginRun(available.map(s=>s.id),"challenge")} disabled={selected.length<20}><Zap size={16}/> 20개 연속 작전</button><button className="btn btn-quiet" onClick={()=>setPage("records")}><Trophy size={16}/> 전적 기록</button></div>
           </div>:<div className="game-layout">
             <div className="game-main">
-              <div className="game-topline"><span className="live-dot"/> LIVE SIMULATION <span className="game-round">{mode==="challenge"?`STRATAGEM ${roundIndex+1} / ${roundList.length}`:"SINGLE STRATAGEM"}</span><button className="pause-button" onClick={pause}><Pause size={14}/> PAUSE</button></div>
+              <div className="game-topline"><span className="live-dot"/> 실시간 시뮬레이션 <span className="game-round">스트라타젬 {roundIndex+1} / {roundList.length}</span><button className="pause-button" onClick={pause}><Pause size={14}/> 일시 정지</button></div>
+              <div className="mission-progress" aria-label={`훈련 진행도 ${roundIndex} / ${roundList.length}`}>
+                <div className="mission-progress-meta"><span>작전 진행도</span><strong>{roundIndex.toString().padStart(2,"0")} / {roundList.length.toString().padStart(2,"0")}</strong></div>
+                <div className="mission-progress-track"><i style={{width:`${roundIndex/Math.max(1,roundList.length)*100}%`}}/></div>
+              </div>
               <div className="stratagem-display">
                 <div className="display-corner corner-tl"/><div className="display-corner corner-tr"/><div className="display-corner corner-bl"/><div className="display-corner corner-br"/>
                 <div className="stratagem-emblem">{activeStratagem.icon}</div><span className="section-index">{activeStratagem.category.toUpperCase()}</span><h2>{activeStratagem.name}</h2><p>{activeStratagem.description}</p>
                 <div className="sequence-row">{activeStratagem.sequence.map((dir,i)=><div key={`${activeId}-${i}`} className={`sequence-key ${i<sequenceIndex?"key-done":i===sequenceIndex?"key-current":"key-waiting"}`}><IconArrow dir={dir} size={23}/><small>{keyGlyph[dir]}</small></div>)}</div>
-                <div className="sequence-progress"><div><span>INPUT SEQUENCE</span><span>{sequenceIndex} / {activeStratagem.sequence.length}</span></div><div className="progress-track"><i style={{width:`${sequenceIndex/activeStratagem.sequence.length*100}%`}}/></div></div>
+                <div className="sequence-progress"><div><span>입력 순서</span><span>{sequenceIndex} / {activeStratagem.sequence.length}</span></div><div className="progress-track"><i style={{width:`${sequenceIndex/activeStratagem.sequence.length*100}%`}}/></div></div>
               </div>
-              <div className="keyboard-hint"><Keyboard size={17}/><span>ENTER SEQUENCE USING</span><strong>W</strong><strong>A</strong><strong>S</strong><strong>D</strong><span className="hint-tail">WRONG INPUT RESETS SEQUENCE</span></div>
+              <div className="keyboard-hint"><Keyboard size={17}/><span>방향키 입력</span><strong>W</strong><strong>A</strong><strong>S</strong><strong>D</strong><span className="hint-tail">오입력 시 현재 순서 초기화</span></div>
             </div>
             <div className="game-side">
-              <div className="metric-card timer-card"><span className="metric-label">경과 시간</span><div className="timer-value">{formatTime(elapsed)}<small>s</small></div><div className="metric-foot"><span className="live-dot"/> LIVE CHRONOMETER</div></div>
-              <div className="metric-card"><span className="metric-label">입력 정확도</span><div className="metric-value">{Math.round(accuracy)}<small>%</small></div><div className="metric-foot">CURRENT ATTEMPT</div></div>
-              <div className="metric-card"><span className="metric-label">입력 오류</span><div className="metric-value error-value">{errors.toString().padStart(2,"0")}</div><div className="metric-foot">SEQUENCE RESETS</div></div>
-              <div className="metric-card"><span className="metric-label">개인 최고 기록</span><div className="metric-value">{formatTime(records[activeId]?.bestTime??null)}<small>s</small></div><div className="metric-foot">STRATAGEM RECORD</div></div>
+              <div className="metric-card timer-card"><span className="metric-label">경과 시간</span><div className="timer-value">{formatTime(elapsed)}<small>s</small></div><div className="metric-foot"><span className="live-dot"/> 실시간 계측</div></div>
+              <div className="metric-card"><span className="metric-label">입력 정확도</span><div className="metric-value">{Math.round(accuracy)}<small>%</small></div><div className="metric-foot">현재 입력 정확도</div></div>
+              <div className="metric-card"><span className="metric-label">입력 오류</span><div className="metric-value error-value">{errors.toString().padStart(2,"0")}</div><div className="metric-foot">입력 순서 초기화 횟수</div></div>
+              <div className="metric-card"><span className="metric-label">개인 최고 기록</span><div className="metric-value">{formatTime(records[activeId]?.bestTime??null)}<small>s</small></div><div className="metric-foot">개별 최고 기록</div></div>
               <button className="btn btn-secondary full-width" onClick={pause}><Pause size={15}/> 훈련 일시 정지</button>
             </div>
           </div>}
@@ -272,7 +301,7 @@ function App() {
         </section>}
 
         {page==="loadout"&&<section className="page">
-          <div className="page-heading"><div><span className="section-index">ARMORY / 03</span><h1>STRATAGEM <em>LOADOUT</em></h1><p>Configure your training pool. Selected stratagems are eligible for challenge deployment.</p></div><div className="loadout-total"><strong>{selected.length}</strong><span> / {stratagems.length} SELECTED</span></div></div>
+          <div className="page-heading"><div><span className="section-index">ARMORY / 03</span><h1>STRATAGEM <em>LOADOUT</em></h1><p>훈련에 등장할 스트라타젬을 선택합니다. 기본 훈련은 10개, 연속 작전은 20개를 출제합니다.</p></div><div className="loadout-total"><strong>{selected.length}</strong><span> / {stratagems.length} SELECTED</span></div></div>
           <div className="toolbar">
             <div className="search-box"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="스트라타젬 검색..."/></div>
             <select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="ALL">전체 분류</option>{categories.map(c=><option key={c}>{c}</option>)}</select>
@@ -283,11 +312,11 @@ function App() {
             <div className="card-top"><span className="card-icon">{s.icon}</span><span className={`check-box ${selected.includes(s.id)?"checked":""}`}>{selected.includes(s.id)&&<Check size={13}/>}</span></div>
             <span className="card-category">{s.category}</span><strong>{s.name}</strong><div className="card-bottom"><span>{s.sequence.map(d=>arrow[d]).join(" ")}</span><span className="card-record">{records[s.id]?`${formatTime(records[s.id].bestTime)}s`:"NO RECORD"}</span></div>
           </button>)}</div>
-          <div className="sticky-action"><span>{selected.length} 개 스트라타젬 선택됨 FOR TRAINING</span><div className="sticky-buttons"><button className="btn btn-secondary" disabled={!selected.length} onClick={()=>{setMode("practice");setActiveId(selected[0]);beginRun([selected[0]],"practice");}}><Crosshair size={15}/> 첫 항목 훈련</button><button className="btn btn-primary" disabled={!selected.length} onClick={()=>{setMode("challenge");beginRun(selected,"challenge");}}><Play size={15} fill="currentColor"/> 연속 작전 시작</button></div></div>
+          <div className="sticky-action"><span>{selected.length} 개 스트라타젬 선택됨 FOR TRAINING</span><div className="sticky-buttons"><button className="btn btn-secondary" disabled={!selected.length} onClick={()=>{setMode("practice");beginRun(selected,"practice");}}><Crosshair size={15}/> 기본 훈련 시작</button><button className="btn btn-primary" disabled={selected.length<20} onClick={()=>{setMode("challenge");beginRun(selected,"challenge");}}><Play size={15} fill="currentColor"/> 20개 연속 작전</button></div></div>
         </section>}
 
         {page==="records"&&<section className="page">
-          <div className="page-heading"><div><span className="section-index">PERFORMANCE LOG / 04</span><h1>PERSONAL <em>RECORDS</em></h1><p>Individual best times are stored locally on this device.</p></div><div className="record-badge"><Trophy size={25}/><span>{Object.keys(records).length} RECORDED</span></div></div>
+          <div className="page-heading"><div><span className="section-index">PERFORMANCE LOG / 04</span><h1>PERSONAL <em>RECORDS</em></h1><p>개별 스트라타젬의 최고 기록과 훈련 성과를 확인합니다.</p></div><div className="record-badge"><Trophy size={25}/><span>{Object.keys(records).length} RECORDED</span></div></div>
           <div className="record-overview"><div className="overview-card"><span>STRATAGEMS MASTERED</span><strong>{Object.keys(records).length}<small> / {stratagems.length}</small></strong></div><div className="overview-card"><span>TOTAL 시도 횟수</span><strong>{Object.values(records).reduce((n,r)=>n+r.attempts,0)}</strong></div><div className="overview-card"><span>TOTAL 선택 해제S</span><strong>{Object.values(records).reduce((n,r)=>n+r.totalClears,0)}</strong></div></div>
           <div className="records-toolbar"><span className="section-index">INDIVIDUAL STRATAGEM PERFORMANCE</span><select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="ALL">전체 분류</option>{categories.map(c=><option key={c}>{c}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value as "name"|"time")}><option value="name">SORT: NAME</option><option value="time">SORT: 최고 기록</option></select></div>
           <div className="record-table-wrap"><table className="record-table"><thead><tr><th>STRATAGEM</th><th>CATEGORY</th><th>최고 기록</th><th>정확도</th><th>오류</th><th>시도 횟수</th></tr></thead><tbody>{stratagems.filter(s=>categoryFilter==="ALL"||s.category===categoryFilter).sort((a,b)=>sort==="name"?a.name.localeCompare(b.name):((records[a.id]?.bestTime??Infinity)-(records[b.id]?.bestTime??Infinity))).map(s=><tr key={s.id}><td><span className="table-icon">{s.icon}</span>{s.name}</td><td className="muted-cell">{s.category}</td><td className="time-cell">{formatTime(records[s.id]?.bestTime??null)}{records[s.id]?"s":""}</td><td>{records[s.id]?`${records[s.id].bestAccuracy.toFixed(0)}%`:"--"}</td><td>{records[s.id]?.bestErrorCount??"--"}</td><td>{records[s.id]?.attempts??0}</td></tr>)}</tbody></table></div>
@@ -295,7 +324,7 @@ function App() {
         </section>}
 
         {page==="settings"&&<section className="page">
-          <div className="page-heading"><div><span className="section-index">SYSTEM CONFIGURATION / 05</span><h1>TACTICAL <em>SETTINGS</em></h1><p>Customize terminal appearance and training feedback.</p></div><div className="settings-symbol"><Settings size={28}/></div></div>
+          <div className="page-heading"><div><span className="section-index">SYSTEM CONFIGURATION / 05</span><h1>TACTICAL <em>SETTINGS</em></h1><p>전술 터미널의 화면과 훈련 피드백을 설정합니다.</p></div><div className="settings-symbol"><Settings size={28}/></div></div>
           <div className="settings-section"><div className="settings-heading"><div><span className="section-index">DISPLAY / 01</span><h2>색상 테마</h2><p>Select a Super Earth-inspired terminal palette.</p></div></div>
             <div className="theme-grid">{(["earth","olive","crimson","arctic"] as Theme[]).map(t=><button key={t} className={`theme-card theme-swatch-${t} ${theme===t?"chosen":""}`} onClick={()=>setTheme(t)}><div className="swatch-preview"><i/><i/><i/></div><div><strong>{themeNames[t]}</strong><small>{t==="earth"?"YELLOW / CHARCOAL":t==="olive"?"OLIVE / GRAPHITE":t==="crimson"?"RED / BLACK":"ICE / NAVY"}</small></div>{theme===t&&<Check size={17}/>}</button>)}</div>
           </div>
