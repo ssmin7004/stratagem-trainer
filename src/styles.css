@@ -40,3 +40,15 @@
 
 .sticky-buttons{display:flex;gap:8px;align-items:center}
 @media(max-width:720px){.sticky-action{align-items:center}.sticky-buttons{gap:5px}.sticky-buttons .btn{padding:10px 8px;font-size:7px;min-height:37px}.sticky-action>span{font-size:6px;max-width:100px;line-height:1.5}}
+
+/* STRATAGEM TRAINER 2.0 : Super Earth tactical terminal palette */
+.app.theme-earth{--bg:#0D0E0E;--panel:#1C1D1F;--panel2:#383B40;--line:#383B40;--text:#E0E0E0;--muted:#a4a6a8;--accent:#FFE900;--accent2:#c9b900;background:radial-gradient(ellipse at 78% 4%,rgba(255,233,0,.07),transparent 36%),#0D0E0E}
+.theme-earth .topbar{background:rgba(13,14,14,.96)}
+.theme-earth .sidebar-card,.theme-earth .metric-card,.theme-earth .mode-card,.theme-earth .stratagem-card,.theme-earth .settings-section,.theme-earth .overview-card{background:#1C1D1F}
+.theme-earth .nav-button.active,.theme-earth .stratagem-card.selected{border-color:#FFE900;background:rgba(255,233,0,.075);box-shadow:0 0 18px rgba(255,233,0,.08)}
+.theme-earth .btn-primary{background:#FFE900;border-color:#FFE900;color:#0D0E0E}
+.theme-earth .sequence-key,.theme-earth .control-key{border-color:#FFE900}
+.theme-earth .hero-visual{filter:drop-shadow(0 0 22px rgba(255,233,0,.12))}
+.theme-earth .section-heading h2,.theme-earth .page-heading h1{letter-spacing:.02em}
+/* Larger, clearer tactical controls */
+.nav-button{min-height:52px;font-size:12px}.btn{font-size:11px;min-height:48px}.mode-card{min-height:220px;padding:25px}.stratagem-card{min-height:172px;padding:18px}.metric-card{padding:20px}.metric-value,.timer-value{font-size:42px}.sequence-key{width:62px;height:68px;font-size:25px}.page-heading h1{font-size:clamp(42px,4vw,58px)}
