@@ -219,3 +219,14 @@ body,button,input,select{font-family:'NanumSquareNeo','NanumSquareNeo',sans-seri
 @keyframes countdownPulse{from{transform:scale(.94);opacity:.72}to{transform:scale(1.04);opacity:1}}
 @media(max-width:1100px){.record-overview{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:720px){.record-overview{grid-template-columns:1fr 1fr}.record-overview .destiny-best-card{grid-column:span 2}}
+
+/* 2.6 profile, completed-session statistics, and count-entry controls */
+.helldiver-profile-panel{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1.1fr) auto;align-items:center;gap:18px;padding:20px 22px;margin:0 0 18px;border:1px solid var(--line);background:#1C1D1F}
+.profile-copy h2{font-size:21px;margin:6px 0}.profile-copy p{font-size:13px;color:var(--muted);margin:0;line-height:1.6}
+.profile-edit{display:flex;gap:7px;min-width:0}.profile-edit input{min-width:0;flex:1;background:#0D0E0E;border:1px solid var(--line);color:var(--text);padding:0 12px;min-height:46px;font-size:15px;caret-color:transparent;outline:none}.profile-edit input:focus{border-color:#FFE900;box-shadow:0 0 0 1px rgba(255,233,0,.15)}
+.share-record-button{white-space:nowrap;min-height:46px}
+.custom-count-row{display:flex;align-items:center;gap:7px}.custom-count-row input{caret-color:transparent}.custom-count-row input:focus{outline:none;border-color:#FFE900;box-shadow:0 0 0 1px rgba(255,233,0,.12)}
+.custom-count-row .clear-count{width:42px;min-width:42px;height:42px;padding:0;display:grid;place-items:center;background:#383B40;border:1px solid var(--line);color:#E0E0E0}.custom-count-row .clear-count:hover{border-color:#FFE900;color:#FFE900}
+.settings-count-options{max-width:520px;margin:15px 0}.settings-custom-count{max-width:620px}.setting-current-count{margin-top:14px;color:var(--muted);font-size:14px}.setting-current-count strong{color:#FFE900;margin-left:8px;font-size:19px}
+@media(max-width:900px){.helldiver-profile-panel{grid-template-columns:1fr}.profile-edit{max-width:100%}.share-record-button{justify-self:start}}
+@media(max-width:520px){.profile-edit{flex-wrap:wrap}.profile-edit input{flex-basis:100%}.helldiver-profile-panel{padding:16px}.custom-count-row{flex-wrap:wrap}.custom-count-row input{flex:1;min-width:100px}}

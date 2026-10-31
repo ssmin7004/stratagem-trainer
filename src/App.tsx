@@ -51,6 +51,9 @@ function App() {
   const [countDraftMessage,setCountDraftMessage] = useState("");
   const [records,setRecords] = useState<Record<string,RecordItem>>(saved.records || {});
   const [destinyBestScore,setDestinyBestScore] = useState<number>(Number.isSafeInteger(saved.destinyBestScore) && saved.destinyBestScore >= 0 ? saved.destinyBestScore : 0);
+  const [completedTrainingCount,setCompletedTrainingCount] = useState<number>(Number.isSafeInteger(saved.completedTrainingCount) && saved.completedTrainingCount >= 0 ? saved.completedTrainingCount : 0);
+  const [helldiverName,setHelldiverName] = useState<string>(typeof saved.helldiverName === "string" ? saved.helldiverName : "HELLDIVER");
+  const completionRecordedRef = useRef(false);
   const [search,setSearch] = useState("");
   const [categoryFilter,setCategoryFilter] = useState("ALL");
   const [sort,setSort] = useState<"name"|"time">("name");
@@ -99,9 +102,9 @@ function App() {
 
   useEffect(()=>{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      settings:{theme,soundEnabled,animationEnabled}, selectedStratagems:selected, trainingCount, records, destinyBestScore
+      settings:{theme,soundEnabled,animationEnabled}, selectedStratagems:selected, trainingCount, records, destinyBestScore, completedTrainingCount, helldiverName
     }));
-  },[theme,soundEnabled,animationEnabled,selected,trainingCount,records,destinyBestScore]);
+  },[theme,soundEnabled,animationEnabled,selected,trainingCount,records,destinyBestScore,completedTrainingCount,helldiverName]);
 
   useEffect(()=>{
     if (gameState!=="playing" || startedAt===null) return;
@@ -122,8 +125,10 @@ function App() {
     countdownTimer.current=undefined;
   };
   useEffect(()=>{
-    if(gameState==="finished" && mode==="destiny"){
-      setDestinyBestScore(previous=>Math.max(previous,roundTimes.length));
+    if(gameState==="finished" && !completionRecordedRef.current){
+      completionRecordedRef.current=true;
+      setCompletedTrainingCount(value=>value+1);
+      if(mode==="destiny") setDestinyBestScore(previous=>Math.max(previous,roundTimes.length));
     }
   },[gameState,mode,roundTimes.length]);
   useEffect(()=>()=>clearCountdown(),[]);
@@ -137,6 +142,7 @@ function App() {
     // keeps a large random queue and ends strictly when the 30-second timer expires.
     const targetCount = selectedMode === "normal" ? trainingCount : 9999;
     const list=Array.from({length:targetCount},()=>ids[Math.floor(Math.random()*ids.length)]);
+    completionRecordedRef.current=false;
     setMode(selectedMode); setRoundList(list); setRoundIndex(0); setRoundTimes([]);
     setActiveId(list[0]); setSequenceIndex(0); setErrors(0); setTotalInputs(0);
     setElapsed(0); setStartedAt(null); startTimeRef.current=null; sessionStartedRef.current=null; pausedAtRef.current=null; setLastResult(null);
@@ -233,6 +239,36 @@ function App() {
     return ()=>window.removeEventListener("keydown",onKey);
   },[page,gameState,handleDirection,beginRun,startPreparedRun,mode,activeId,available,roundList]);
 
+  const exportRecordImage = async () => {
+    if(document.fonts?.ready) await document.fonts.ready;
+    const canvas=document.createElement("canvas");
+    canvas.width=1600; canvas.height=1000;
+    const ctx=canvas.getContext("2d");
+    if(!ctx){setNotice("이미지 생성에 실패했습니다.");return;}
+    const bg=ctx.createLinearGradient(0,0,1600,1000); bg.addColorStop(0,"#171b18"); bg.addColorStop(1,"#0d0e0e");
+    ctx.fillStyle=bg;ctx.fillRect(0,0,1600,1000);
+    ctx.strokeStyle="#FFE900";ctx.lineWidth=3;ctx.strokeRect(35,35,1530,930);
+    ctx.fillStyle="#FFE900";ctx.font="700 28px NanumSquareNeo, sans-serif";ctx.fillText("SUPER EARTH  /  SEAF TRAINING DIVISION",80,105);
+    ctx.fillStyle="#E0E0E0";ctx.font="900 64px NanumSquareNeo, sans-serif";ctx.fillText("개인 전투 기록증",80,205);
+    ctx.fillStyle="#C9B269";ctx.font="700 22px NanumSquareNeo, sans-serif";ctx.fillText("HELLDIVER CALLSIGN",82,285);
+    ctx.fillStyle="#FFFFFF";ctx.font="800 54px NanumSquareNeo, sans-serif";ctx.fillText(helldiverName.trim()||"HELLDIVER",80,355);
+    const totalAttempts=Object.values(records).reduce<number>((n,r)=>n+(r as RecordItem).attempts,0);
+    const stats=[
+      ["완료한 훈련",`${completedTrainingCount}회`],
+      ["총 훈련 시도",`${totalAttempts}회`],
+      ["평균 입력 반응속도",averageReactionTime===null?"--":`${(averageReactionTime/1000).toFixed(2)}초`],
+      ["평균 정확도",averageOverallAccuracy===null?"--":`${averageOverallAccuracy.toFixed(1)}%`],
+      ["데스티니 최고 기록",`${destinyBestScore}회 / 30초`]
+    ];
+    const positions=[[80,445],[585,445],[1090,445],[80,665],[585,665]];
+    stats.forEach(([label,value],i)=>{const [x,y]=positions[i];ctx.fillStyle="#1C1D1F";ctx.fillRect(x,y,440,165);ctx.strokeStyle="#383B40";ctx.lineWidth=2;ctx.strokeRect(x,y,440,165);ctx.fillStyle="#A9B0AA";ctx.font="600 23px NanumSquareNeo, sans-serif";ctx.fillText(label,x+25,y+48);ctx.fillStyle=i===0||i===4?"#FFE900":"#FFFFFF";ctx.font="800 42px NanumSquareNeo, sans-serif";ctx.fillText(value,x+25,y+112);});
+    const topX=1090,topY=665;ctx.fillStyle="#1C1D1F";ctx.fillRect(topX,topY,440,165);ctx.strokeStyle="#383B40";ctx.strokeRect(topX,topY,440,165);ctx.fillStyle="#A9B0AA";ctx.font="600 23px NanumSquareNeo, sans-serif";ctx.fillText("가장 빠른 스트라타젬 TOP 2",topX+25,topY+42);
+    fastestStratagems.forEach((row,index)=>{ctx.fillStyle=index===0?"#FFE900":"#E0E0E0";ctx.font="700 21px NanumSquareNeo, sans-serif";ctx.fillText(`${index+1}. ${row.stratagem.name}`,topX+25,topY+83+index*42);ctx.fillStyle="#A9B0AA";ctx.font="600 18px NanumSquareNeo, sans-serif";ctx.fillText(`${((row.averageTime||0)/1000).toFixed(2)}초`,topX+340,topY+83+index*42);});
+    ctx.fillStyle="#C9B269";ctx.font="600 20px NanumSquareNeo, sans-serif";ctx.fillText("AUTHORIZED BY SUPER EARTH  •  STRATAGEM TRAINER",80,900);
+    ctx.fillStyle="#8A918B";ctx.font="18px NanumSquareNeo, sans-serif";ctx.fillText(new Date().toLocaleDateString("ko-KR"),1320,900);
+    const link=document.createElement("a");link.download=`helldiver-record-${(helldiverName.trim()||"HELLDIVER").replace(/[^a-zA-Z0-9가-힣_-]/g,"-")}.png`;link.href=canvas.toDataURL("image/png");link.click();
+  };
+
   const pause=()=>{
     if(gameState==="playing"){
       const now=performance.now();
@@ -271,7 +307,7 @@ function App() {
         <div className="brand-mark"><Shield size={22}/></div>
         <div><div className="brand-title">STRATAGEM<span> / </span>TRAINER</div><div className="brand-sub">SUPER EARTH TACTICAL TRAINING DIVISION</div></div>
       </div>
-      <div className="top-status"><span className="status-dot"/> 시스템 가동 중 <span className="top-divider"/> PC 훈련 버전 <span className="top-divider"/> V2.4.0</div>
+      <div className="top-status"><span className="status-dot"/> 시스템 가동 중 <span className="top-divider"/> PC 훈련 버전 <span className="top-divider"/> V2.6.0</div>
     </header>
 
     <div className="shell">
@@ -379,8 +415,8 @@ function App() {
                   </div>
                   <div className="custom-count-row">
                     <label htmlFor="custom-training-count">직접 입력</label>
-                    <input id="custom-training-count" type="number" min="1" max="9999" inputMode="numeric" value={countDraft} onChange={e=>{setCountDraft(e.target.value);setCountDraftMessage("");}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();confirmCustomCount();}}} placeholder="개수 입력"/>
-                    <button type="button" onClick={confirmCustomCount}>확정</button>
+                    <input id="custom-training-count" type="text" inputMode="numeric" value={countDraft} onChange={e=>{setCountDraft(e.target.value.replace(/[^0-9]/g,""));setCountDraftMessage("");}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();confirmCustomCount();}}} placeholder="개수 입력"/>
+                    <button type="button" className="clear-count" aria-label="입력값 지우기" onClick={()=>{setCountDraft("");setCountDraftMessage("");}}><X size={16}/></button><button type="button" onClick={confirmCustomCount}>확정</button>
                   </div>
                   <p className="count-input-hint">숫자를 입력한 뒤 Enter 키를 눌러 확정하세요. 선택된 종류와 관계없이 같은 스트라타젬이 반복 출제될 수 있습니다.</p>
                   {countDraftMessage&&<p className="count-input-message">{countDraftMessage}</p>}
@@ -439,9 +475,14 @@ function App() {
 
         {page==="records"&&<section className="page">
           <div className="page-heading"><div><span className="section-index">PERFORMANCE LOG / 04</span><h1>PERSONAL <em>RECORDS</em></h1><p>개별 스트라타젬의 최고 기록과 훈련 성과를 확인합니다.</p></div><div className="record-badge"><Trophy size={25}/><span>{Object.keys(records).length} RECORDED</span></div></div>
+          <div className="helldiver-profile-panel">
+            <div className="profile-copy"><span className="section-index">HELLDIVER PROFILE</span><h2>헬다이버 호출명</h2><p>전적 이미지에 표시될 이름입니다. 이 브라우저에 저장됩니다.</p></div>
+            <div className="profile-edit"><input aria-label="헬다이버 호출명" maxLength={20} value={helldiverName} onChange={e=>setHelldiverName(e.target.value)} placeholder="호출명 입력"/><button className="btn btn-primary" onClick={()=>setHelldiverName(v=>v.trim().slice(0,20)||"HELLDIVER")}>이름 저장</button></div>
+            <button className="btn btn-secondary share-record-button" onClick={exportRecordImage}><Trophy size={16}/> 전적을 이미지로 공유하기</button>
+          </div>
           <div className="record-overview">
-            <div className="overview-card"><span>숙달한 스트라타젬</span><strong>{Object.keys(records).length}<small> / {stratagems.length}</small></strong></div>
-            <div className="overview-card"><span>총 훈련 시도</span><strong>{Object.values(records).reduce((n,r)=>n+r.attempts,0)}</strong></div>
+            <div className="overview-card"><span>완료한 훈련 횟수</span><strong>{completedTrainingCount}<small> 회</small></strong></div>
+            <div className="overview-card"><span>총 훈련 시도</span><strong>{Object.values(records).reduce<number>((n,r)=>n+(r as RecordItem).attempts,0)}</strong></div>
             <div className="overview-card"><span>평균 입력 반응속도</span><strong>{averageReactionTime===null?"--":`${(averageReactionTime/1000).toFixed(2)}초`}</strong></div>
             <div className="overview-card"><span>평균 정확도</span><strong>{averageOverallAccuracy===null?"--":`${averageOverallAccuracy.toFixed(1)}%`}</strong></div>
             <div className="overview-card destiny-best-card"><span>데스티니 트레이닝 최고기록</span><strong>{destinyBestScore}<small> 회 / 30초</small></strong></div>
@@ -455,20 +496,26 @@ function App() {
           </section>
           <div className="records-toolbar"><span className="section-index">INDIVIDUAL STRATAGEM PERFORMANCE</span><select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="ALL">전체 분류</option>{categories.map(c=><option key={c}>{c}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value as "name"|"time")}><option value="name">SORT: NAME</option><option value="time">SORT: 최고 기록</option></select></div>
           <div className="record-table-wrap"><table className="record-table"><thead><tr><th>STRATAGEM</th><th>CATEGORY</th><th>최고 기록</th><th>평균 입력 시간</th><th>평균 정확도</th><th>최고 기록 정확도</th><th>오류</th><th>시도 횟수</th></tr></thead><tbody>{stratagems.filter(s=>categoryFilter==="ALL"||s.category===categoryFilter).sort((a,b)=>sort==="name"?a.name.localeCompare(b.name):((records[a.id]?.bestTime??Infinity)-(records[b.id]?.bestTime??Infinity))).map(s=><tr key={s.id}><td><span className={`table-icon category-${s.category}`}>{s.icon}</span>{s.name}</td><td className={`muted-cell category-${s.category}`}>{s.category}</td><td className="time-cell">{formatTime(records[s.id]?.bestTime??null)}{records[s.id]?"s":""}</td><td>{(records[s.id]?.aggregateAttempts||0)>0?`${(((records[s.id]?.totalTimeMs||0)/(records[s.id]?.aggregateAttempts||1))/1000).toFixed(2)}s`:"--"}</td><td>{(records[s.id]?.aggregateAttempts||0)>0?`${((records[s.id]?.totalAccuracySum||0)/(records[s.id]?.aggregateAttempts||1)).toFixed(1)}%`:"--"}</td><td>{records[s.id]?`${records[s.id].bestAccuracy.toFixed(0)}%`:"--"}</td><td>{records[s.id]?.bestErrorCount??"--"}</td><td>{records[s.id]?.attempts??0}</td></tr>)}</tbody></table></div>
-          <div className="records-footer"><span>RECORDS SAVED AUTOMATICALLY TO THIS BROWSER</span><button className="text-button danger-text" onClick={()=>{if(window.confirm("모든 개인 기록과 데스티니 최고 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){setRecords({});setDestinyBestScore(0);}}}>전적 초기화</button></div>
+          <div className="records-footer"><span>RECORDS SAVED AUTOMATICALLY TO THIS BROWSER</span><button className="text-button danger-text" onClick={()=>{if(window.confirm("모든 개인 기록과 데스티니 최고 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){setRecords({});setDestinyBestScore(0);setCompletedTrainingCount(0);}}}>전적 초기화</button></div>
         </section>}
 
         {page==="settings"&&<section className="page">
           <div className="page-heading"><div><span className="section-index">SYSTEM CONFIGURATION / 05</span><h1>TACTICAL <em>SETTINGS</em></h1><p>전술 터미널의 화면과 훈련 피드백을 설정합니다.</p></div><div className="settings-symbol"><Settings size={28}/></div></div>
-          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">DISPLAY / 01</span><h2>색상 테마</h2><p>Select a Super Earth-inspired terminal palette.</p></div></div>
+          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">NORMAL TRAINING / 01</span><h2>노멀 트레이닝 기본 출제 횟수</h2><p>작전 본부에서 노멀 트레이닝을 준비할 때 적용되는 기본 문제 수입니다.</p></div></div>
+            <div className="count-options settings-count-options">{[10,20,30].map(n=><button key={n} className={trainingCount===n?"chosen":""} onClick={()=>{setTrainingCount(n);setCountDraft(String(n));setCountDraftMessage("");}}>{n}회</button>)}</div>
+            <div className="custom-count-row settings-custom-count"><label htmlFor="settings-training-count">직접 입력</label><input id="settings-training-count" type="text" inputMode="numeric" value={countDraft} onChange={e=>{setCountDraft(e.target.value.replace(/[^0-9]/g,""));setCountDraftMessage("");}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();confirmCustomCount();}}} placeholder="문제 수"/><button type="button" className="clear-count" aria-label="입력값 지우기" onClick={()=>{setCountDraft("");setCountDraftMessage("");}}><X size={17}/></button><button type="button" onClick={confirmCustomCount}>확정</button></div>
+            {countDraftMessage&&<p className="count-input-message">{countDraftMessage}</p>}
+            <div className="setting-current-count">현재 기본 출제 횟수 <strong>{trainingCount}회</strong></div>
+          </div>
+          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">DISPLAY / 02</span><h2>색상 테마</h2><p>Select a Super Earth-inspired terminal palette.</p></div></div>
             <div className="theme-grid">{(["earth","olive","crimson","arctic"] as Theme[]).map(t=><button key={t} className={`theme-card theme-swatch-${t} ${theme===t?"chosen":""}`} onClick={()=>setTheme(t)}><div className="swatch-preview"><i/><i/><i/></div><div><strong>{themeNames[t]}</strong><small>{t==="earth"?"YELLOW / CHARCOAL":t==="olive"?"OLIVE / GRAPHITE":t==="crimson"?"RED / BLACK":"ICE / NAVY"}</small></div>{theme===t&&<Check size={17}/>}</button>)}</div>
           </div>
-          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">FEEDBACK / 02</span><h2>TRAINING EXPERIENCE</h2><p>Adjust optional interface effects.</p></div></div>
+          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">FEEDBACK / 03</span><h2>TRAINING EXPERIENCE</h2><p>Adjust optional interface effects.</p></div></div>
             <div className="setting-row"><div className="setting-icon"><Volume2 size={19}/></div><div className="setting-copy"><strong>효과음</strong><small>Play feedback sounds for correct and incorrect inputs.</small></div><button className={`toggle ${soundEnabled?"on":""}`} onClick={()=>setSoundEnabled(v=>!v)} aria-label="Toggle sound"><i/></button></div>
             <div className="setting-row"><div className="setting-icon"><Sparkles size={19}/></div><div className="setting-copy"><strong>화면 애니메이션</strong><small>Enable interface transitions and motion effects.</small></div><button className={`toggle ${animationEnabled?"on":""}`} onClick={()=>setAnimationEnabled(v=>!v)} aria-label="Toggle animations"><i/></button></div>
           </div>
-          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">CONTROLS / 03</span><h2>입력 설정</h2><p>Training uses WASD directional inputs.</p></div></div><div className="control-keys">{(["W","A","S","D"]).map(k=><div key={k} className="control-key">{k}</div>)}</div><div className="control-note"><Keyboard size={16}/> W = UP&nbsp;&nbsp; A = LEFT&nbsp;&nbsp; S = DOWN&nbsp;&nbsp; D = RIGHT</div></div>
-          <div className="settings-section danger-zone"><div className="settings-heading"><div><span className="section-index">DATA MANAGEMENT / 04</span><h2>LOCAL DATA</h2><p>Remove saved settings, loadout, and records from this browser.</p></div></div><button className="btn btn-danger" onClick={()=>{if(window.confirm("모든 설정, 선택 목록, 기록을 초기화할까요?")){setRecords({});setDestinyBestScore(0);setSelected(stratagems.map(s=>s.id));setTheme("earth");setSoundEnabled(false);setAnimationEnabled(true);}}}><RotateCcw size={15}/> 전체 데이터 초기화</button></div>
+          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">CONTROLS / 04</span><h2>입력 설정</h2><p>Training uses WASD directional inputs.</p></div></div><div className="control-keys">{(["W","A","S","D"]).map(k=><div key={k} className="control-key">{k}</div>)}</div><div className="control-note"><Keyboard size={16}/> W = UP&nbsp;&nbsp; A = LEFT&nbsp;&nbsp; S = DOWN&nbsp;&nbsp; D = RIGHT</div></div>
+          <div className="settings-section danger-zone"><div className="settings-heading"><div><span className="section-index">DATA MANAGEMENT / 05</span><h2>LOCAL DATA</h2><p>Remove saved settings, loadout, and records from this browser.</p></div></div><button className="btn btn-danger" onClick={()=>{if(window.confirm("모든 설정, 선택 목록, 기록을 초기화할까요?")){setRecords({});setDestinyBestScore(0);setCompletedTrainingCount(0);setHelldiverName("HELLDIVER");setSelected(stratagems.map(s=>s.id));setTrainingCount(10);setCountDraft("10");setTheme("earth");setSoundEnabled(false);setAnimationEnabled(true);}}}><RotateCcw size={15}/> 전체 데이터 초기화</button></div>
         </section>}
       </main>
     </div>
