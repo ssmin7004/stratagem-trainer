@@ -44,8 +44,9 @@ function App() {
   const [soundEnabled,setSoundEnabled] = useState<boolean>(saved.settings?.soundEnabled ?? false);
   const [animationEnabled,setAnimationEnabled] = useState<boolean>(saved.settings?.animationEnabled ?? true);
   const [selected,setSelected] = useState<string[]>(saved.selectedStratagems || stratagems.map(s=>s.id));
-  const [trainingCount,setTrainingCount] = useState<number>(saved.trainingCount || 10);
-  const [countDraft,setCountDraft] = useState<string>(String(saved.trainingCount || 10));
+  const savedTrainingCount = Number.isSafeInteger(saved.trainingCount) && saved.trainingCount > 0 && saved.trainingCount <= 9999 ? saved.trainingCount : 10;
+  const [trainingCount,setTrainingCount] = useState<number>(savedTrainingCount);
+  const [countDraft,setCountDraft] = useState<string>(String(savedTrainingCount));
   const [countDraftMessage,setCountDraftMessage] = useState("");
   const [records,setRecords] = useState<Record<string,RecordItem>>(saved.records || {});
   const [search,setSearch] = useState("");
@@ -87,13 +88,11 @@ function App() {
   const sessionAverageTime = roundTimes.length ? roundTimes.reduce((sum,item)=>sum+item.time,0)/roundTimes.length : 0;
   const confirmCustomCount = () => {
     const parsed = Number(countDraft.trim());
-    if (!Number.isInteger(parsed) || parsed < 1 || parsed > stratagems.length) {
-      setCountDraftMessage(`1부터 ${stratagems.length} 사이의 정수를 입력해 주세요.`); return;
+    if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 9999) {
+      setCountDraftMessage("1부터 9,999 사이의 정수를 입력해 주세요."); return;
     }
     setTrainingCount(parsed); setCountDraft(String(parsed));
-    setCountDraftMessage(selected.length < parsed
-      ? `현재 선택된 ${selected.length}개보다 많습니다. 훈련 목록에서 ${parsed}개 이상 선택해 주세요.`
-      : `${parsed}개로 설정했습니다.`);
+    setCountDraftMessage(`${parsed}회 출제 횟수를 확정했습니다. 선택된 스트라타젬에서 무작위로 반복 출제됩니다.`);
   };
 
   useEffect(()=>{
@@ -117,14 +116,13 @@ function App() {
   useEffect(()=>()=>clearCountdown(),[]);
   const beginRun = useCallback((ids:string[], selectedMode:Mode)=>{
     const targetCount = selectedMode === "practice" ? trainingCount : 20;
-    if (ids.length < targetCount) {
-      setNotice(`훈련 ${targetCount}개를 진행하려면 스트라타젬을 ${targetCount}개 이상 선택해야 합니다.`);
+    if (ids.length === 0) {
+      setNotice("훈련 목록에서 스트라타젬을 한 종류 이상 선택해 주세요.");
       setPage("loadout");
       return;
     }
-    const shuffled=[...ids];
-    for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
-    const list=shuffled.slice(0,targetCount);
+    // Draw each question independently. Repeated stratagems are intentional.
+    const list=Array.from({length:targetCount},()=>ids[Math.floor(Math.random()*ids.length)]);
     setMode(selectedMode); setRoundList(list); setRoundIndex(0); setRoundTimes([]);
     setActiveId(list[0]); setSequenceIndex(0); setErrors(0); setTotalInputs(0);
     setElapsed(0); setStartedAt(null); startTimeRef.current=null; sessionStartedRef.current=null; pausedAtRef.current=null; setLastResult(null);
@@ -233,13 +231,21 @@ function App() {
         <div className="brand-mark"><Shield size={22}/></div>
         <div><div className="brand-title">STRATAGEM<span> / </span>TRAINER</div><div className="brand-sub">SUPER EARTH TACTICAL TRAINING DIVISION</div></div>
       </div>
-      <div className="top-status"><span className="status-dot"/> 시스템 가동 중 <span className="top-divider"/> PC 훈련 버전 <span className="top-divider"/> V2.2.0</div>
+      <div className="top-status"><span className="status-dot"/> 시스템 가동 중 <span className="top-divider"/> PC 훈련 버전 <span className="top-divider"/> V2.3.0</div>
     </header>
 
     <div className="shell">
       <aside className="sidebar">
         <div className="side-label">메인 터미널</div>
-        {navItems.map(([id,label,Icon])=><button key={id} className={`nav-button ${page===id?"active":""}`} onClick={()=>{if(gameState==="playing"||gameState==="countdown")setGameState("paused");setPage(id);}}>
+        {navItems.map(([id,label,Icon])=><button key={id} className={`nav-button ${page===id?"active":""}`} onClick={()=>{
+          if(id==="training"){
+            if(gameState==="finished"||gameState==="result") beginRun(available.map(s=>s.id),"practice");
+            else setPage("training");
+          } else {
+            if(gameState==="playing"||gameState==="countdown")setGameState("paused");
+            setPage(id);
+          }
+        }}>
           <Icon size={17}/><span>{label}</span>{page===id&&<ChevronRight size={15} className="nav-chevron"/>}
         </button>)}
         <div className="side-spacer"/>
@@ -283,10 +289,10 @@ function App() {
           <div className="section-heading"><div><span className="section-index">01 / SELECT PROTOCOL</span><h2>훈련 프로토콜 선택</h2></div><span className="heading-rule"/></div>
           <div className="mode-cards">
             <button className="mode-card" onClick={()=>{setMode("practice");setPage("loadout");}}>
-              <div className="mode-icon"><Crosshair size={24}/></div><div className="mode-tag">기본 훈련</div><h3>기본 훈련 · {trainingCount}개</h3><p>무작위 스트라타젬 {trainingCount}개를 연속으로 호출하고 입력 숙련도를 높인다.</p><span className="mode-link">기본 훈련 설정 <ChevronRight size={15}/></span>
+              <div className="mode-icon"><Crosshair size={24}/></div><div className="mode-tag">기본 훈련</div><h3>기본 훈련 · {trainingCount}회</h3><p>선택한 스트라타젬을 무작위로 {trainingCount}회 호출하고 입력 숙련도를 높인다.</p><span className="mode-link">기본 훈련 설정 <ChevronRight size={15}/></span>
             </button>
             <button className="mode-card" onClick={()=>{setMode("challenge");beginRun(available.map(s=>s.id),"challenge");}}>
-              <div className="mode-icon"><Zap size={24}/></div><div className="mode-tag">전투 준비 태세</div><h3>연속 작전</h3><p>무작위 스트라타젬 20개를 연속으로 호출하라.</p><span className="mode-link">연속 작전 시작 <ChevronRight size={15}/></span>
+              <div className="mode-icon"><Zap size={24}/></div><div className="mode-tag">전투 준비 태세</div><h3>연속 작전</h3><p>선택한 스트라타젬을 무작위로 20회 호출하라.</p><span className="mode-link">연속 작전 시작 <ChevronRight size={15}/></span>
             </button>
           </div>
         </section>}
@@ -294,7 +300,7 @@ function App() {
         {page==="training"&&<section className="page training-page">
           <div className="page-heading"><div><span className="section-index">FIELD SIMULATION / 02</span><h1>TRAINING <em>GROUND</em></h1><p>호출 순서를 정확하게 입력하고 작전 절차를 완료하십시오.</p></div><div className="mode-pill">{mode==="practice"?"기본 훈련":"연속 작전"}</div></div>
           {(gameState==="idle")?<div className="prestart-panel">
-            <div className="prestart-icon"><Crosshair size={42}/></div><span className="section-index">시뮬레이션 대기</span><h2>작전 시작 대기 중</h2><p>{mode==="practice"?`선택한 목록에서 무작위 ${trainingCount}개를 연속 훈련합니다.`:"선택한 목록에서 무작위 20개를 연속 훈련합니다."}</p>
+            <div className="prestart-icon"><Crosshair size={42}/></div><span className="section-index">시뮬레이션 대기</span><h2>작전 시작 대기 중</h2><p>{mode==="practice"?`선택한 목록에서 무작위 ${trainingCount}회 출제합니다. 같은 스트라타젬이 반복될 수 있습니다.`:"선택한 목록에서 무작위 20회 출제합니다. 같은 스트라타젬이 반복될 수 있습니다."}</p>
             <button className="btn btn-primary" onClick={()=>beginRun(available.map(s=>s.id),mode)}><Play size={16} fill="currentColor"/> 훈련 시작</button>
             <button className="text-button" onClick={()=>setPage("loadout")}> 훈련 목록 편성</button>
           </div>:gameState==="countdown"?<div className="countdown-panel"><span className="section-index">훈련 준비</span><div className="countdown-number">{countdown}</div><h2>호출 준비</h2><p>WASD 입력 대기</p></div> :gameState==="result"||gameState==="finished"?<div className="result-panel completion-panel">
@@ -318,7 +324,7 @@ function App() {
                       const itemAccuracy=item.inputs?((item.inputs-item.errors)/item.inputs)*100:100;
                       return <div className="session-detail-row" key={`${item.id}-${index}`}>
                         <span className="session-detail-number">{String(index+1).padStart(2,"0")}</span>
-                        <span className="session-detail-name">{stratagem?.name || item.id}</span>
+                        <span className="session-detail-name"><i className={`category-dot category-bg-${stratagem?.category || "지원"}`}/>{stratagem?.name || item.id}<small className={`category-label category-${stratagem?.category || "지원"}`}>{stratagem?.category || "지원"}</small></span>
                         <span className="session-detail-time">{formatTime(item.time)}초</span>
                         <span className="session-detail-accuracy">{Math.round(itemAccuracy)}%</span>
                       </div>;
@@ -329,30 +335,30 @@ function App() {
               <aside className="completion-recommendations">
                 <div className="completion-setting">
                   <span className="section-index">추천 설정 01</span>
-                  <h3>훈련 스트라타젬 개수 설정</h3>
-                  <p>다음 기본 훈련에서 출제할 개수를 선택합니다.</p>
+                  <h3>훈련 문제 출제 횟수</h3>
+                  <p>선택한 스트라타젬 목록에서 출제할 문제 수를 설정합니다.</p>
                   <div className="count-options">
-                    {[10,20,30].map(n=><button key={n} className={trainingCount===n?"chosen":""} onClick={()=>{setTrainingCount(n);setCountDraft(String(n));setCountDraftMessage("");}}>{n}개</button>)}
+                    {[10,20,30].map(n=><button key={n} className={trainingCount===n?"chosen":""} onClick={()=>{setTrainingCount(n);setCountDraft(String(n));setCountDraftMessage("");}}>{n}회</button>)}
                   </div>
                   <div className="custom-count-row">
                     <label htmlFor="custom-training-count">직접 입력</label>
-                    <input id="custom-training-count" type="number" min="1" max={stratagems.length} inputMode="numeric" value={countDraft} onChange={e=>{setCountDraft(e.target.value);setCountDraftMessage("");}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();confirmCustomCount();}}} placeholder="개수 입력"/>
+                    <input id="custom-training-count" type="number" min="1" max="9999" inputMode="numeric" value={countDraft} onChange={e=>{setCountDraft(e.target.value);setCountDraftMessage("");}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();confirmCustomCount();}}} placeholder="개수 입력"/>
                     <button type="button" onClick={confirmCustomCount}>확정</button>
                   </div>
-                  <p className="count-input-hint">숫자를 입력한 뒤 Enter 키를 눌러 확정하세요. 최대 {stratagems.length}개까지 설정할 수 있습니다.</p>
+                  <p className="count-input-hint">숫자를 입력한 뒤 Enter 키를 눌러 확정하세요. 선택된 종류와 관계없이 같은 스트라타젬이 반복 출제될 수 있습니다.</p>
                   {countDraftMessage&&<p className="count-input-message">{countDraftMessage}</p>}
                 </div>
                 <div className="completion-setting">
                   <span className="section-index">추천 설정 02</span>
-                  <h3>등장할 스트라타젬 선택</h3>
-                  <p>다음 훈련에 포함할 장비 목록을 직접 편성합니다.</p>
-                  <div className="selection-summary"><strong>{selected.length} / {stratagems.length}</strong><span>개 선택됨</span></div>
+                  <h3>출제할 스트라타젬 선택</h3>
+                  <p>여기서 선택한 종류 안에서 문제를 무작위로 출제합니다.</p>
+                  <div className="selection-summary"><strong>{selected.length} / {stratagems.length}</strong><span>종류 선택됨</span></div>
                   <button className="btn btn-secondary full-width" onClick={()=>setPage("loadout")}><ListChecks size={16}/> 스트라타젬 목록 편성</button>
                 </div>
               </aside>
             </div>
-            {selected.length<trainingCount&&<p className="completion-warning">현재 선택한 스트라타젬은 {selected.length}개입니다. {trainingCount}개 훈련을 시작하려면 목록에서 더 선택해야 합니다.</p>}
-            <div className="result-actions"><button className="btn btn-primary" disabled={selected.length<trainingCount} onClick={()=>beginRun(available.map(s=>s.id),"practice")}><RotateCcw size={16}/> 다음 기본 훈련 시작 ({trainingCount}개)</button><button className="btn btn-secondary" onClick={()=>beginRun(available.map(s=>s.id),"challenge")} disabled={selected.length<20}><Zap size={16}/> 20개 연속 작전</button><button className="btn btn-quiet" onClick={()=>setPage("records")}><Trophy size={16}/> 전적 기록</button></div>
+            
+            <div className="result-actions"><button className="btn btn-primary" disabled={!selected.length} onClick={()=>beginRun(available.map(s=>s.id),"practice")}><RotateCcw size={16}/> 다음 기본 훈련 시작 ({trainingCount}회)</button><button className="btn btn-secondary" onClick={()=>beginRun(available.map(s=>s.id),"challenge")} disabled={!selected.length}><Zap size={16}/> 20회 연속 작전</button><button className="btn btn-quiet" onClick={()=>setPage("records")}><Trophy size={16}/> 전적 기록</button></div>
           </div>:<div className="game-layout">
             <div className="game-main">
               <div className="game-topline"><span className="live-dot"/> 실시간 시뮬레이션 <span className="game-round">스트라타젬 {roundIndex+1} / {roundList.length}</span><button className="pause-button" onClick={pause}><Pause size={14}/> 일시 정지</button></div>
@@ -362,7 +368,7 @@ function App() {
               </div>
               <div className="stratagem-display">
                 <div className="display-corner corner-tl"/><div className="display-corner corner-tr"/><div className="display-corner corner-bl"/><div className="display-corner corner-br"/>
-                <div className="stratagem-emblem">{activeStratagem.icon}</div><span className="section-index">{activeStratagem.category.toUpperCase()}</span><h2>{activeStratagem.name}</h2><p>{activeStratagem.description}</p>
+                <div className="stratagem-emblem">{activeStratagem.icon}</div><span className={`category-tag category-${activeStratagem.category}`}>{activeStratagem.category} 스트라타젬</span><h2>{activeStratagem.name}</h2><p>{activeStratagem.description}</p>
                 <div className="sequence-row">{activeStratagem.sequence.map((dir,i)=><div key={`${activeId}-${i}`} className={`sequence-key ${i<sequenceIndex?"key-done":i===sequenceIndex?"key-current":"key-waiting"}`}><IconArrow dir={dir} size={23}/><small>{keyGlyph[dir]}</small></div>)}</div>
                 <div className="sequence-progress"><div><span>입력 순서</span><span>{sequenceIndex} / {activeStratagem.sequence.length}</span></div><div className="progress-track"><i style={{width:`${sequenceIndex/activeStratagem.sequence.length*100}%`}}/></div></div>
               </div>
@@ -380,18 +386,18 @@ function App() {
         </section>}
 
         {page==="loadout"&&<section className="page">
-          <div className="page-heading"><div><span className="section-index">ARMORY / 03</span><h1>STRATAGEM <em>LOADOUT</em></h1><p>훈련에 등장할 스트라타젬을 선택합니다. 기본 훈련은 현재 설정한 {trainingCount}개, 연속 작전은 20개를 출제합니다.</p></div><div className="loadout-total"><strong>{selected.length}</strong><span> / {stratagems.length} SELECTED</span></div></div>
+          <div className="page-heading"><div><span className="section-index">ARMORY / 03</span><h1>STRATAGEM <em>LOADOUT</em></h1><p>훈련에 등장할 스트라타젬을 선택합니다. 선택한 스트라타젬 종류에서 무작위로 출제합니다. 기본 훈련은 {trainingCount}회, 연속 작전은 20회 진행합니다.</p></div><div className="loadout-total"><strong>{selected.length}</strong><span> / {stratagems.length} SELECTED</span></div></div>
           <div className="toolbar">
             <div className="search-box"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="스트라타젬 검색..."/></div>
             <select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="ALL">전체 분류</option>{categories.map(c=><option key={c}>{c}</option>)}</select>
             <button className="btn btn-small btn-secondary" onClick={()=>setSelected(stratagems.map(s=>s.id))}>전체 선택</button>
             <button className="btn btn-small btn-quiet" onClick={()=>setSelected([])}>선택 해제</button>
           </div>
-          <div className="stratagem-grid">{filtered.map(s=><button key={s.id} className={`stratagem-card ${selected.includes(s.id)?"selected":""}`} onClick={()=>toggleSelected(s.id)}>
+          <div className="stratagem-grid">{filtered.map(s=><button key={s.id} className={`stratagem-card type-${s.category} ${selected.includes(s.id)?"selected":""}`} onClick={()=>toggleSelected(s.id)}>
             <div className="card-top"><span className="card-icon">{s.icon}</span><span className={`check-box ${selected.includes(s.id)?"checked":""}`}>{selected.includes(s.id)&&<Check size={13}/>}</span></div>
-            <span className="card-category">{s.category}</span><strong>{s.name}</strong><div className="card-bottom"><span>{s.sequence.map(d=>arrow[d]).join(" ")}</span><span className="card-record">{records[s.id]?`${formatTime(records[s.id].bestTime)}s`:"NO RECORD"}</span></div>
+            <span className={`card-category category-${s.category}`}>{s.category} 스트라타젬</span><strong>{s.name}</strong><div className="card-bottom"><span>{s.sequence.map(d=>arrow[d]).join(" ")}</span><span className="card-record">{records[s.id]?`${formatTime(records[s.id].bestTime)}s`:"NO RECORD"}</span></div>
           </button>)}</div>
-          <div className="sticky-action"><span>{selected.length} 개 스트라타젬 선택됨 FOR TRAINING</span><div className="sticky-buttons"><button className="btn btn-secondary" disabled={!selected.length} onClick={()=>{setMode("practice");beginRun(selected,"practice");}}><Crosshair size={15}/> 기본 훈련 시작 ({trainingCount}개)</button><button className="btn btn-primary" disabled={selected.length<20} onClick={()=>{setMode("challenge");beginRun(selected,"challenge");}}><Play size={15} fill="currentColor"/> 20개 연속 작전</button></div></div>
+          <div className="sticky-action"><span>{selected.length} 개 스트라타젬 선택됨 FOR TRAINING</span><div className="sticky-buttons"><button className="btn btn-secondary" disabled={!selected.length} onClick={()=>{setMode("practice");beginRun(selected,"practice");}}><Crosshair size={15}/> 기본 훈련 시작 ({trainingCount}회)</button><button className="btn btn-primary" disabled={!selected.length} onClick={()=>{setMode("challenge");beginRun(selected,"challenge");}}><Play size={15} fill="currentColor"/> 20회 연속 작전</button></div></div>
         </section>}
 
         {page==="records"&&<section className="page">
@@ -405,12 +411,12 @@ function App() {
           <section className="fastest-section">
             <div className="fastest-heading"><span className="section-index">FASTEST STRATAGEMS / TOP 02</span><h2>평균 입력 속도가 가장 빠른 스트라타젬</h2></div>
             {fastestStratagems.length ? <div className="fastest-grid">{fastestStratagems.map((row,index)=><article className="fastest-card" key={row.stratagem.id}>
-              <span className="fastest-rank">0{index+1}</span><span className="fastest-icon">{row.stratagem.icon}</span><h3>{row.stratagem.name}</h3>
+              <span className="fastest-rank">0{index+1}</span><span className={`fastest-icon category-${row.stratagem.category}`}>{row.stratagem.icon}</span><h3>{row.stratagem.name}</h3>
               <div className="fastest-stats"><div><strong>{((row.averageTime||0)/1000).toFixed(2)}초</strong><span>평균 입력 시간</span></div><div><strong>{(row.averageAccuracy||0).toFixed(1)}%</strong><span>평균 정확도</span></div></div>
             </article>)}</div> : <div className="fastest-empty">평균 기록이 아직 없습니다. 훈련을 완료하면 가장 빠른 스트라타젬이 여기에 표시됩니다.</div>}
           </section>
           <div className="records-toolbar"><span className="section-index">INDIVIDUAL STRATAGEM PERFORMANCE</span><select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="ALL">전체 분류</option>{categories.map(c=><option key={c}>{c}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value as "name"|"time")}><option value="name">SORT: NAME</option><option value="time">SORT: 최고 기록</option></select></div>
-          <div className="record-table-wrap"><table className="record-table"><thead><tr><th>STRATAGEM</th><th>CATEGORY</th><th>최고 기록</th><th>평균 입력 시간</th><th>평균 정확도</th><th>최고 기록 정확도</th><th>오류</th><th>시도 횟수</th></tr></thead><tbody>{stratagems.filter(s=>categoryFilter==="ALL"||s.category===categoryFilter).sort((a,b)=>sort==="name"?a.name.localeCompare(b.name):((records[a.id]?.bestTime??Infinity)-(records[b.id]?.bestTime??Infinity))).map(s=><tr key={s.id}><td><span className="table-icon">{s.icon}</span>{s.name}</td><td className="muted-cell">{s.category}</td><td className="time-cell">{formatTime(records[s.id]?.bestTime??null)}{records[s.id]?"s":""}</td><td>{(records[s.id]?.aggregateAttempts||0)>0?`${(((records[s.id]?.totalTimeMs||0)/(records[s.id]?.aggregateAttempts||1))/1000).toFixed(2)}s`:"--"}</td><td>{(records[s.id]?.aggregateAttempts||0)>0?`${((records[s.id]?.totalAccuracySum||0)/(records[s.id]?.aggregateAttempts||1)).toFixed(1)}%`:"--"}</td><td>{records[s.id]?`${records[s.id].bestAccuracy.toFixed(0)}%`:"--"}</td><td>{records[s.id]?.bestErrorCount??"--"}</td><td>{records[s.id]?.attempts??0}</td></tr>)}</tbody></table></div>
+          <div className="record-table-wrap"><table className="record-table"><thead><tr><th>STRATAGEM</th><th>CATEGORY</th><th>최고 기록</th><th>평균 입력 시간</th><th>평균 정확도</th><th>최고 기록 정확도</th><th>오류</th><th>시도 횟수</th></tr></thead><tbody>{stratagems.filter(s=>categoryFilter==="ALL"||s.category===categoryFilter).sort((a,b)=>sort==="name"?a.name.localeCompare(b.name):((records[a.id]?.bestTime??Infinity)-(records[b.id]?.bestTime??Infinity))).map(s=><tr key={s.id}><td><span className={`table-icon category-${s.category}`}>{s.icon}</span>{s.name}</td><td className={`muted-cell category-${s.category}`}>{s.category}</td><td className="time-cell">{formatTime(records[s.id]?.bestTime??null)}{records[s.id]?"s":""}</td><td>{(records[s.id]?.aggregateAttempts||0)>0?`${(((records[s.id]?.totalTimeMs||0)/(records[s.id]?.aggregateAttempts||1))/1000).toFixed(2)}s`:"--"}</td><td>{(records[s.id]?.aggregateAttempts||0)>0?`${((records[s.id]?.totalAccuracySum||0)/(records[s.id]?.aggregateAttempts||1)).toFixed(1)}%`:"--"}</td><td>{records[s.id]?`${records[s.id].bestAccuracy.toFixed(0)}%`:"--"}</td><td>{records[s.id]?.bestErrorCount??"--"}</td><td>{records[s.id]?.attempts??0}</td></tr>)}</tbody></table></div>
           <div className="records-footer"><span>RECORDS SAVED AUTOMATICALLY TO THIS BROWSER</span><button className="text-button danger-text" onClick={()=>{if(window.confirm("모든 개인 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){setRecords({});}}}>전적 초기화</button></div>
         </section>}
 
