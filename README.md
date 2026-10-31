@@ -43,3 +43,10 @@ GitHub의 `main` 브랜치에 커밋하면 연결된 Vercel 프로젝트가 자�
 ## 안내
 
 본 프로젝트는 Helldivers 2에서 영감을 받은 팬 제작 훈련 프로젝트이며 Arrowhead Game Studios 및 Sony와 무관합니다. 스트라타젬 데이터와 입력 시퀀스는 게임 업데이트에 따라 달라질 수 있으므로 실제 게임 내 정보를 확인해 주세요.
+
+
+## Version 2.5.0
+
+- Spacebar and the start button launch a three-second countdown before training begins.
+- Normal Training defaults to 10 questions for new installations. Existing saved question-count preferences are preserved.
+- Records now show the personal best number of stratagems completed during a 30-second Destiny Training session. The best score is saved in this browser.
