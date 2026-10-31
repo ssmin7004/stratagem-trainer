@@ -45,7 +45,7 @@ GitHub의 `main` 브랜치에 커밋하면 연결된 Vercel 프로젝트가 자�
 본 프로젝트는 Helldivers 2에서 영감을 받은 팬 제작 훈련 프로젝트이며 Arrowhead Game Studios 및 Sony와 무관합니다. 스트라타젬 데이터와 입력 시퀀스는 게임 업데이트에 따라 달라질 수 있으므로 실제 게임 내 정보를 확인해 주세요.
 
 
-## Version 2.6.0
+## Version 2.7.0
 
 - Spacebar and the start button launch a three-second countdown before training begins.
 - Normal Training defaults to 10 questions for new installations. Existing saved question-count preferences are preserved.
@@ -68,3 +68,9 @@ GitHub의 `main` 브랜치에 커밋하면 연결된 Vercel 프로젝트가 자�
 - 호출명과 주요 통계를 포함한 PNG 전투 기록증을 생성할 수 있습니다.
 
 기존 브라우저 기록은 유지됩니다. 완료 훈련 횟수는 2.6부터 새로 집계되며, 이전 버전에는 세션 완료 횟수 데이터가 없으므로 과거 기록은 소급 계산되지 않습니다.
+
+
+## 2.7 업데이트
+- 모바일 기기 접속 시 PC 최적화 안내 팝업 표시
+- 확인 후 현재 브라우저 탭 세션 동안 팝업 재표시 방지
+- 모바일 이용 자체는 차단하지 않음
