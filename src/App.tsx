@@ -50,6 +50,7 @@ function App() {
   const [countDraft,setCountDraft] = useState<string>(String(savedTrainingCount));
   const [countDraftMessage,setCountDraftMessage] = useState("");
   const [records,setRecords] = useState<Record<string,RecordItem>>(saved.records || {});
+  const [destinyBestScore,setDestinyBestScore] = useState<number>(Number.isSafeInteger(saved.destinyBestScore) && saved.destinyBestScore >= 0 ? saved.destinyBestScore : 0);
   const [search,setSearch] = useState("");
   const [categoryFilter,setCategoryFilter] = useState("ALL");
   const [sort,setSort] = useState<"name"|"time">("name");
@@ -98,9 +99,9 @@ function App() {
 
   useEffect(()=>{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      settings:{theme,soundEnabled,animationEnabled}, selectedStratagems:selected, trainingCount, records
+      settings:{theme,soundEnabled,animationEnabled}, selectedStratagems:selected, trainingCount, records, destinyBestScore
     }));
-  },[theme,soundEnabled,animationEnabled,selected,trainingCount,records]);
+  },[theme,soundEnabled,animationEnabled,selected,trainingCount,records,destinyBestScore]);
 
   useEffect(()=>{
     if (gameState!=="playing" || startedAt===null) return;
@@ -120,6 +121,11 @@ function App() {
     if (countdownTimer.current) window.clearInterval(countdownTimer.current);
     countdownTimer.current=undefined;
   };
+  useEffect(()=>{
+    if(gameState==="finished" && mode==="destiny"){
+      setDestinyBestScore(previous=>Math.max(previous,roundTimes.length));
+    }
+  },[gameState,mode,roundTimes.length]);
   useEffect(()=>()=>clearCountdown(),[]);
   const beginRun = useCallback((ids:string[], selectedMode:Mode)=>{
     if (ids.length === 0) {
@@ -139,9 +145,21 @@ function App() {
   },[trainingCount]);
   const startPreparedRun = useCallback(()=>{
     if(gameState!=="idle" || roundList.length===0) return;
-    const now=performance.now();
-    startTimeRef.current=now; sessionStartedRef.current=now; pausedAtRef.current=null;
-    setStartedAt(now); setElapsed(0); setGameState("playing");
+    clearCountdown();
+    setCountdown(3);
+    setGameState("countdown");
+    let remaining=3;
+    countdownTimer.current=window.setInterval(()=>{
+      remaining-=1;
+      if(remaining>0){
+        setCountdown(remaining);
+        return;
+      }
+      clearCountdown();
+      const now=performance.now();
+      startTimeRef.current=now; sessionStartedRef.current=now; pausedAtRef.current=null;
+      setStartedAt(now); setElapsed(0); setCountdown(0); setGameState("playing");
+    },1000);
   },[gameState,roundList]);
   const updateRecord = useCallback((id:string,time:number,err:number,inputs:number)=>{
     const acc=inputs?Math.max(0,((inputs-err)/inputs)*100):100;
@@ -426,6 +444,7 @@ function App() {
             <div className="overview-card"><span>총 훈련 시도</span><strong>{Object.values(records).reduce((n,r)=>n+r.attempts,0)}</strong></div>
             <div className="overview-card"><span>평균 입력 반응속도</span><strong>{averageReactionTime===null?"--":`${(averageReactionTime/1000).toFixed(2)}초`}</strong></div>
             <div className="overview-card"><span>평균 정확도</span><strong>{averageOverallAccuracy===null?"--":`${averageOverallAccuracy.toFixed(1)}%`}</strong></div>
+            <div className="overview-card destiny-best-card"><span>데스티니 트레이닝 최고기록</span><strong>{destinyBestScore}<small> 회 / 30초</small></strong></div>
           </div>
           <section className="fastest-section">
             <div className="fastest-heading"><span className="section-index">FASTEST STRATAGEMS / TOP 02</span><h2>평균 입력 속도가 가장 빠른 스트라타젬</h2></div>
@@ -436,7 +455,7 @@ function App() {
           </section>
           <div className="records-toolbar"><span className="section-index">INDIVIDUAL STRATAGEM PERFORMANCE</span><select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="ALL">전체 분류</option>{categories.map(c=><option key={c}>{c}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value as "name"|"time")}><option value="name">SORT: NAME</option><option value="time">SORT: 최고 기록</option></select></div>
           <div className="record-table-wrap"><table className="record-table"><thead><tr><th>STRATAGEM</th><th>CATEGORY</th><th>최고 기록</th><th>평균 입력 시간</th><th>평균 정확도</th><th>최고 기록 정확도</th><th>오류</th><th>시도 횟수</th></tr></thead><tbody>{stratagems.filter(s=>categoryFilter==="ALL"||s.category===categoryFilter).sort((a,b)=>sort==="name"?a.name.localeCompare(b.name):((records[a.id]?.bestTime??Infinity)-(records[b.id]?.bestTime??Infinity))).map(s=><tr key={s.id}><td><span className={`table-icon category-${s.category}`}>{s.icon}</span>{s.name}</td><td className={`muted-cell category-${s.category}`}>{s.category}</td><td className="time-cell">{formatTime(records[s.id]?.bestTime??null)}{records[s.id]?"s":""}</td><td>{(records[s.id]?.aggregateAttempts||0)>0?`${(((records[s.id]?.totalTimeMs||0)/(records[s.id]?.aggregateAttempts||1))/1000).toFixed(2)}s`:"--"}</td><td>{(records[s.id]?.aggregateAttempts||0)>0?`${((records[s.id]?.totalAccuracySum||0)/(records[s.id]?.aggregateAttempts||1)).toFixed(1)}%`:"--"}</td><td>{records[s.id]?`${records[s.id].bestAccuracy.toFixed(0)}%`:"--"}</td><td>{records[s.id]?.bestErrorCount??"--"}</td><td>{records[s.id]?.attempts??0}</td></tr>)}</tbody></table></div>
-          <div className="records-footer"><span>RECORDS SAVED AUTOMATICALLY TO THIS BROWSER</span><button className="text-button danger-text" onClick={()=>{if(window.confirm("모든 개인 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){setRecords({});}}}>전적 초기화</button></div>
+          <div className="records-footer"><span>RECORDS SAVED AUTOMATICALLY TO THIS BROWSER</span><button className="text-button danger-text" onClick={()=>{if(window.confirm("모든 개인 기록과 데스티니 최고 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){setRecords({});setDestinyBestScore(0);}}}>전적 초기화</button></div>
         </section>}
 
         {page==="settings"&&<section className="page">
@@ -449,7 +468,7 @@ function App() {
             <div className="setting-row"><div className="setting-icon"><Sparkles size={19}/></div><div className="setting-copy"><strong>화면 애니메이션</strong><small>Enable interface transitions and motion effects.</small></div><button className={`toggle ${animationEnabled?"on":""}`} onClick={()=>setAnimationEnabled(v=>!v)} aria-label="Toggle animations"><i/></button></div>
           </div>
           <div className="settings-section"><div className="settings-heading"><div><span className="section-index">CONTROLS / 03</span><h2>입력 설정</h2><p>Training uses WASD directional inputs.</p></div></div><div className="control-keys">{(["W","A","S","D"]).map(k=><div key={k} className="control-key">{k}</div>)}</div><div className="control-note"><Keyboard size={16}/> W = UP&nbsp;&nbsp; A = LEFT&nbsp;&nbsp; S = DOWN&nbsp;&nbsp; D = RIGHT</div></div>
-          <div className="settings-section danger-zone"><div className="settings-heading"><div><span className="section-index">DATA MANAGEMENT / 04</span><h2>LOCAL DATA</h2><p>Remove saved settings, loadout, and records from this browser.</p></div></div><button className="btn btn-danger" onClick={()=>{if(window.confirm("모든 설정, 선택 목록, 기록을 초기화할까요?")){setRecords({});setSelected(stratagems.map(s=>s.id));setTheme("earth");setSoundEnabled(false);setAnimationEnabled(true);}}}><RotateCcw size={15}/> 전체 데이터 초기화</button></div>
+          <div className="settings-section danger-zone"><div className="settings-heading"><div><span className="section-index">DATA MANAGEMENT / 04</span><h2>LOCAL DATA</h2><p>Remove saved settings, loadout, and records from this browser.</p></div></div><button className="btn btn-danger" onClick={()=>{if(window.confirm("모든 설정, 선택 목록, 기록을 초기화할까요?")){setRecords({});setDestinyBestScore(0);setSelected(stratagems.map(s=>s.id));setTheme("earth");setSoundEnabled(false);setAnimationEnabled(true);}}}><RotateCcw size={15}/> 전체 데이터 초기화</button></div>
         </section>}
       </main>
     </div>

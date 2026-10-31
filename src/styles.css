@@ -131,7 +131,7 @@ body,button,input,select{font-family:'NanumSquareNeo','NanumSquareNeo',sans-seri
 .count-input-message{color:var(--accent)!important}
 .completion-panel .result-actions{justify-content:flex-end;margin-top:18px}
 .completion-warning{padding:12px 15px;border:1px solid rgba(255,233,0,.35);background:rgba(255,233,0,.06)}
-.record-overview{grid-template-columns:repeat(4,minmax(0,1fr))}
+.record-overview{grid-template-columns:repeat(5,minmax(0,1fr))}
 .overview-card strong{font-size:clamp(24px,2.4vw,34px);overflow-wrap:anywhere}
 .fastest-section{margin:0 0 28px}
 .fastest-heading{margin-bottom:13px}
@@ -209,3 +209,13 @@ body,button,input,select{font-family:'NanumSquareNeo','NanumSquareNeo',sans-seri
  .training-subnav small{font-size:7px}
  .space-start-prompt{font-size:12px;flex-wrap:wrap}
 }
+
+/* 2.5: destiny training personal best */
+.destiny-best-card{border-color:rgba(255,233,0,.42);background:linear-gradient(145deg,rgba(255,233,0,.07),transparent 72%),var(--panel)}
+.destiny-best-card strong{color:var(--accent)}
+.destiny-best-card strong small{font-size:12px;color:var(--muted)}
+.countdown-panel{position:relative;overflow:hidden}
+.countdown-number{animation:countdownPulse .85s ease-in-out infinite alternate}
+@keyframes countdownPulse{from{transform:scale(.94);opacity:.72}to{transform:scale(1.04);opacity:1}}
+@media(max-width:1100px){.record-overview{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.record-overview{grid-template-columns:1fr 1fr}.record-overview .destiny-best-card{grid-column:span 2}}
