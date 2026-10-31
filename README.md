@@ -1,46 +1,36 @@
-# STRATAGEM TRAINER v1.0
+# STRATAGEM TRAINER 2.0
 
-PC-first React + TypeScript + Vite prototype for a Helldivers 2-inspired stratagem input trainer.
+슈퍼 어스 전술 장비 관리 터미널 콘셉트의 스트라타젬 입력 훈련 웹앱입니다.
 
-## Run locally
-
-1. Install Node.js 20 or newer.
-2. Extract this archive.
-3. Open a terminal in `stratagem-trainer`.
-4. Run:
+## 실행
 
 ```bash
 npm install
 npm run dev
 ```
 
-5. Open the local URL printed by Vite (usually `http://localhost:5173`).
+터미널에 표시되는 로컬 주소를 브라우저에서 여세요.
 
-To create a production build:
+## 빌드
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Included
+## 주요 기능
+- 전술 터미널 스타일의 어두운 UI와 슈퍼 어스 노란색 강조색
+- 개별 훈련 및 최대 20개 연속 작전
+- WASD 방향 입력, 오입력 시 현재 순서 처음부터 재시작
+- 훈련 시간, 정확도, 오류 및 스트라타젬별 최고 기록
+- 훈련 목록 편성, 검색 및 분류 필터
+- 브라우저 LocalStorage에 설정과 전적 저장
+- 한국어 메뉴 및 주요 스트라타젬 명칭
 
-- Main menu, training, loadout, records, and settings screens
-- WASD directional input
-- Practice and 10-item Challenge modes
-- Wrong input resets the current sequence; timer continues
-- Individual best-time records stored in browser LocalStorage
-- Four color themes
-- Loadout search, category filtering, select all, and clear
-- Responsive layout with desktop-first design
+## 데이터 정확성
+`src/data.ts`에는 대표 스트라타젬 31개의 예시 데이터가 포함되어 있습니다. 현재 게임의 전체 스트라타젬 목록과 입력 순서를 완전히 반영한 공식 데이터베이스는 아닙니다. 공개 전 게임 내 최신 정보와 대조해 보완해야 합니다.
 
-## Data accuracy note
+## 배포
+GitHub 저장소에 변경 사항을 커밋하면 연결된 Vercel 프로젝트가 자동으로 다시 빌드 및 배포합니다.
 
-`src/data.ts` contains a starter catalog with representative stratagem entries and sequences. It is intentionally data-driven, but it is **not yet a verified exhaustive catalog of every stratagem currently available in Helldivers 2**. Before treating this as a complete reference tool, verify every entry and sequence against the current in-game stratagem menu and add any missing entries. The sequence data is kept separate from the game logic to make that update straightforward.
-
-## Notes
-
-- Records are local to the browser and do not sync between devices.
-- Clearing browser site data may remove records.
-- The project is fan-made and is not affiliated with Arrowhead Game Studios or Sony.
-- Use original or appropriately licensed artwork and audio for any public deployment.
+팬 제작 프로젝트이며 Arrowhead Game Studios 및 Sony와 제휴 또는 공식 관계가 없습니다.
