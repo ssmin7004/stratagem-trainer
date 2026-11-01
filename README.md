@@ -45,7 +45,7 @@ GitHub의 `main` 브랜치에 커밋하면 연결된 Vercel 프로젝트가 자�
 본 프로젝트는 Helldivers 2에서 영감을 받은 팬 제작 훈련 프로젝트이며 Arrowhead Game Studios 및 Sony와 무관합니다. 스트라타젬 데이터와 입력 시퀀스는 게임 업데이트에 따라 달라질 수 있으므로 실제 게임 내 정보를 확인해 주세요.
 
 
-## Version 2.7.0
+## Version 2.8.0
 
 - Spacebar and the start button launch a three-second countdown before training begins.
 - Normal Training defaults to 10 questions for new installations. Existing saved question-count preferences are preserved.
@@ -74,3 +74,9 @@ GitHub의 `main` 브랜치에 커밋하면 연결된 Vercel 프로젝트가 자�
 - 모바일 기기 접속 시 PC 최적화 안내 팝업 표시
 - 확인 후 현재 브라우저 탭 세션 동안 팝업 재표시 방지
 - 모바일 이용 자체는 차단하지 않음
+
+
+## 2.8 업데이트
+- 입력 방식 설정: WASD + 방향키 / WASD 전용 / 방향키 전용
+- 입력 방식 설정 LocalStorage 자동 저장
+- 공통 버튼과 선택 카드의 둥근 모서리 및 상호작용 효과 개선
