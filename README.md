@@ -45,7 +45,7 @@ GitHub의 `main` 브랜치에 커밋하면 연결된 Vercel 프로젝트가 자�
 본 프로젝트는 Helldivers 2에서 영감을 받은 팬 제작 훈련 프로젝트이며 Arrowhead Game Studios 및 Sony와 무관합니다. 스트라타젬 데이터와 입력 시퀀스는 게임 업데이트에 따라 달라질 수 있으므로 실제 게임 내 정보를 확인해 주세요.
 
 
-## Version 2.8.0
+## Version 2.9.0
 
 - Spacebar and the start button launch a three-second countdown before training begins.
 - Normal Training defaults to 10 questions for new installations. Existing saved question-count preferences are preserved.
@@ -80,3 +80,15 @@ GitHub의 `main` 브랜치에 커밋하면 연결된 Vercel 프로젝트가 자�
 - 입력 방식 설정: WASD + 방향키 / WASD 전용 / 방향키 전용
 - 입력 방식 설정 LocalStorage 자동 저장
 - 공통 버튼과 선택 카드의 둥근 모서리 및 상호작용 효과 개선
+
+
+## 2.9.0 변경 사항
+- 훈련 목록을 공격 / 지원 / 방어 / 임무 카테고리별 아코디언으로 구성
+- 여러 카테고리를 동시에 펼칠 수 있으며, 분류별 전체 선택 및 해제 지원
+- 신규 스트라타젬 항목 21종 추가
+- 새로 추가된 항목은 기존 저장 선택 목록에도 자동 포함
+- 테마 설정을 SUPER EARTH 기본 테마로 통합
+- 우측 상단 버전 정보를 눌러 업데이트 내역 확인
+- 노멀 트레이닝 횟수 확정 버튼의 줄바꿈 방지
+
+참고: 스트라타젬 목록은 커뮤니티 위키 및 공개 코드 목록을 참고해 확장했습니다. 게임 업데이트에 따라 목록과 입력 코드가 변경될 수 있으므로, 최신 게임 내 호출 코드를 기준으로 정기적인 검증이 필요합니다.
