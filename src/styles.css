@@ -257,3 +257,35 @@ body,button,input,select{font-family:'NanumSquareNeo','NanumSquareNeo',sans-seri
 .mobile-notice-confirm{width:100%;min-height:48px;border:1px solid var(--accent);background:var(--accent);color:#0D0E0E;font-weight:900;font-size:15px;cursor:pointer}
 .mobile-notice-confirm:hover{filter:brightness(1.08)}
 @media(max-width:420px){.mobile-notice-backdrop{padding:14px}.mobile-notice-dialog{padding:21px}.mobile-notice-dialog p{font-size:14px}}
+
+
+/* 2.8 UI refinement: rounded, tactile controls */
+.btn,.nav-button,.pause-button,.count-options button,.custom-count-row button,
+.theme-card,.mode-card,.input-mode-card,.mobile-notice-confirm,.result-actions button,
+button:not(.toggle):not(.control-key){
+  border-radius:12px;
+}
+.btn{min-height:46px;padding:13px 19px;letter-spacing:.4px;box-shadow:0 2px 0 rgba(0,0,0,.24)}
+.btn-primary{box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 62%,#6b5d16),0 7px 18px rgba(0,0,0,.18)}
+.btn-primary:hover{filter:brightness(1.07);transform:translateY(-2px);box-shadow:0 5px 0 color-mix(in srgb,var(--accent) 62%,#6b5d16),0 10px 22px rgba(0,0,0,.22)}
+.btn-primary:active,.btn-secondary:active,.nav-button:active{transform:translateY(1px);box-shadow:inset 0 2px 5px rgba(0,0,0,.24)}
+.btn-secondary{border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));}
+.nav-button{border-radius:11px;height:47px;padding:0 13px;letter-spacing:.5px}
+.nav-button.active{box-shadow:inset 3px 0 0 var(--accent),0 5px 16px rgba(0,0,0,.12)}
+.count-options button,.custom-count-row button{border-radius:10px;min-height:42px;transition:transform .16s,filter .16s,background .16s}
+.count-options button:hover,.theme-card:hover,.input-mode-card:hover{transform:translateY(-2px);filter:brightness(1.08)}
+.theme-card{border-radius:14px;padding:15px}
+.settings-section{border-radius:14px}
+.input-mode-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+.input-mode-card{position:relative;min-height:160px;text-align:left;padding:19px 16px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012)),var(--panel);border:1px solid var(--line);color:var(--text);display:flex;flex-direction:column;align-items:flex-start;gap:8px;transition:transform .18s,border-color .18s,box-shadow .18s,background .18s}
+.input-mode-card.chosen{border-color:var(--accent);background:linear-gradient(145deg,rgba(227,200,78,.13),rgba(255,255,255,.015)),var(--panel);box-shadow:0 0 0 1px rgba(227,200,78,.12),0 10px 24px rgba(0,0,0,.18)}
+.input-mode-card strong{font-size:14px;padding-right:25px}
+.input-mode-card small{font-size:11px;color:var(--muted);line-height:1.55}
+.input-mode-check{position:absolute;right:13px;top:13px;width:23px;height:23px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.07);color:var(--accent)}
+.input-mode-card.chosen .input-mode-check{background:var(--accent);color:#171d1a}
+.input-key-preview{display:flex;align-items:center;gap:5px;margin-top:auto;padding-top:7px}
+.input-key-preview i{font-style:normal;width:25px;height:25px;display:grid;place-items:center;border:1px solid var(--line);border-radius:7px;background:#111512;color:var(--text);font-size:11px;font-weight:800}
+.input-key-preview b{font-size:10px;color:var(--muted);padding:0 2px}
+.control-note{font-size:11px;gap:8px;line-height:1.6}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(max-width:850px){.input-mode-grid{grid-template-columns:1fr}.input-mode-card{min-height:125px}}

@@ -11,6 +11,7 @@ type Page = "home" | "training" | "loadout" | "records" | "settings";
 type Mode = "normal" | "destiny";
 type GameState = "idle" | "countdown" | "playing" | "paused" | "result" | "finished";
 type Theme = "earth" | "olive" | "crimson" | "arctic";
+type InputMode = "both" | "wasd" | "arrows";
 type RecordItem = {
   stratagemId: string; bestTime: number; bestAccuracy: number; bestErrorCount: number;
   attempts: number; totalClears: number;
@@ -20,7 +21,7 @@ type RecordItem = {
 const STORAGE_KEY = "stratagem-trainer-v1";
 const themeNames: Record<Theme,string> = { earth:"SUPER EARTH", olive:"MILITARY OLIVE", crimson:"CRIMSON ALERT", arctic:"ARCTIC SUPPORT" };
 const keyGlyph: Record<Direction, string> = { UP:"W", DOWN:"S", LEFT:"A", RIGHT:"D" };
-const initialSettings = { theme:"earth" as Theme, soundEnabled:false, animationEnabled:true };
+const initialSettings = { theme:"earth" as Theme, soundEnabled:false, animationEnabled:true, inputMode:"both" as InputMode };
 
 function readSaved() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
@@ -44,6 +45,7 @@ function App() {
   const [theme,setTheme] = useState<Theme>(saved.settings?.theme || "earth");
   const [soundEnabled,setSoundEnabled] = useState<boolean>(saved.settings?.soundEnabled ?? false);
   const [animationEnabled,setAnimationEnabled] = useState<boolean>(saved.settings?.animationEnabled ?? true);
+  const [inputMode,setInputMode] = useState<InputMode>(saved.settings?.inputMode === "wasd" || saved.settings?.inputMode === "arrows" ? saved.settings.inputMode : "both");
   const [selected,setSelected] = useState<string[]>(saved.selectedStratagems || stratagems.map(s=>s.id));
   const savedTrainingCount = Number.isSafeInteger(saved.trainingCount) && saved.trainingCount > 0 && saved.trainingCount <= 9999 ? saved.trainingCount : 10;
   const [trainingCount,setTrainingCount] = useState<number>(savedTrainingCount);
@@ -113,9 +115,9 @@ function App() {
 
   useEffect(()=>{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      settings:{theme,soundEnabled,animationEnabled}, selectedStratagems:selected, trainingCount, records, destinyBestScore, completedTrainingCount, helldiverName
+      settings:{theme,soundEnabled,animationEnabled,inputMode}, selectedStratagems:selected, trainingCount, records, destinyBestScore, completedTrainingCount, helldiverName
     }));
-  },[theme,soundEnabled,animationEnabled,selected,trainingCount,records,destinyBestScore,completedTrainingCount,helldiverName]);
+  },[theme,soundEnabled,animationEnabled,inputMode,selected,trainingCount,records,destinyBestScore,completedTrainingCount,helldiverName]);
 
   useEffect(()=>{
     if (gameState!=="playing" || startedAt===null) return;
@@ -233,22 +235,25 @@ function App() {
     const onKey=(e:KeyboardEvent)=>{
       const target=e.target as HTMLElement|null;
       if(target && (["INPUT","TEXTAREA","SELECT"].includes(target.tagName)||target.isContentEditable)) return;
-      const dir=keyFor[e.key.toLowerCase()];
-      if(!dir) {
-        if(e.code==="Space" && page==="training"){
-          e.preventDefault();
-          if(gameState==="idle"){
-            if(roundList.length===0) beginRun(available.map(s=>s.id),mode); else startPreparedRun();
-          }
+      if(e.code==="Space" && page==="training"){
+        e.preventDefault();
+        if(gameState==="idle"){
+          if(roundList.length===0) beginRun(available.map(s=>s.id),mode); else startPreparedRun();
         }
         return;
       }
+      const pressed=e.key.toLowerCase();
+      const wasdDir=keyFor[pressed];
+      const arrowDir:Record<string,Direction>={arrowup:"UP",arrowdown:"DOWN",arrowleft:"LEFT",arrowright:"RIGHT"};
+      const isWasd=Boolean(wasdDir);
+      const dir=isWasd ? (inputMode==="arrows" ? undefined : wasdDir) : (inputMode==="wasd" ? undefined : arrowDir[pressed]);
+      if(!dir) return;
       e.preventDefault();
       if(gameState==="playing") handleDirection(dir);
     };
     window.addEventListener("keydown",onKey);
     return ()=>window.removeEventListener("keydown",onKey);
-  },[page,gameState,handleDirection,beginRun,startPreparedRun,mode,activeId,available,roundList]);
+  },[page,gameState,handleDirection,beginRun,startPreparedRun,mode,activeId,available,roundList,inputMode]);
 
   const exportRecordImage = async () => {
     if(document.fonts?.ready) await document.fonts.ready;
@@ -525,8 +530,21 @@ function App() {
             <div className="setting-row"><div className="setting-icon"><Volume2 size={19}/></div><div className="setting-copy"><strong>효과음</strong><small>Play feedback sounds for correct and incorrect inputs.</small></div><button className={`toggle ${soundEnabled?"on":""}`} onClick={()=>setSoundEnabled(v=>!v)} aria-label="Toggle sound"><i/></button></div>
             <div className="setting-row"><div className="setting-icon"><Sparkles size={19}/></div><div className="setting-copy"><strong>화면 애니메이션</strong><small>Enable interface transitions and motion effects.</small></div><button className={`toggle ${animationEnabled?"on":""}`} onClick={()=>setAnimationEnabled(v=>!v)} aria-label="Toggle animations"><i/></button></div>
           </div>
-          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">CONTROLS / 04</span><h2>입력 설정</h2><p>Training uses WASD directional inputs.</p></div></div><div className="control-keys">{(["W","A","S","D"]).map(k=><div key={k} className="control-key">{k}</div>)}</div><div className="control-note"><Keyboard size={16}/> W = UP&nbsp;&nbsp; A = LEFT&nbsp;&nbsp; S = DOWN&nbsp;&nbsp; D = RIGHT</div></div>
-          <div className="settings-section danger-zone"><div className="settings-heading"><div><span className="section-index">DATA MANAGEMENT / 05</span><h2>LOCAL DATA</h2><p>Remove saved settings, loadout, and records from this browser.</p></div></div><button className="btn btn-danger" onClick={()=>{if(window.confirm("모든 설정, 선택 목록, 기록을 초기화할까요?")){setRecords({});setDestinyBestScore(0);setCompletedTrainingCount(0);setHelldiverName("HELLDIVER");setSelected(stratagems.map(s=>s.id));setTrainingCount(10);setCountDraft("10");setTheme("earth");setSoundEnabled(false);setAnimationEnabled(true);}}}><RotateCcw size={15}/> 전체 데이터 초기화</button></div>
+          <div className="settings-section"><div className="settings-heading"><div><span className="section-index">CONTROLS / 04</span><h2>입력 설정</h2><p>훈련 중 사용할 키보드 입력 방식을 선택합니다.</p></div></div>
+            <div className="input-mode-grid">
+              <button type="button" className={`input-mode-card ${inputMode==="both"?"chosen":""}`} onClick={()=>setInputMode("both")} aria-pressed={inputMode==="both"}>
+                <span className="input-mode-check">{inputMode==="both"?<Check size={15}/>:null}</span><strong>WASD + 방향키</strong><small>두 입력 방식을 모두 사용합니다.</small><div className="input-key-preview"><i>W</i><i>A</i><i>S</i><i>D</i><b>+</b><i>↑</i><i>←</i><i>↓</i><i>→</i></div>
+              </button>
+              <button type="button" className={`input-mode-card ${inputMode==="wasd"?"chosen":""}`} onClick={()=>setInputMode("wasd")} aria-pressed={inputMode==="wasd"}>
+                <span className="input-mode-check">{inputMode==="wasd"?<Check size={15}/>:null}</span><strong>WASD 전용</strong><small>W, A, S, D 키만 입력으로 인정합니다.</small><div className="input-key-preview"><i>W</i><i>A</i><i>S</i><i>D</i></div>
+              </button>
+              <button type="button" className={`input-mode-card ${inputMode==="arrows"?"chosen":""}`} onClick={()=>setInputMode("arrows")} aria-pressed={inputMode==="arrows"}>
+                <span className="input-mode-check">{inputMode==="arrows"?<Check size={15}/>:null}</span><strong>방향키 전용</strong><small>↑, ↓, ←, → 키만 입력으로 인정합니다.</small><div className="input-key-preview"><i>↑</i><i>←</i><i>↓</i><i>→</i></div>
+              </button>
+            </div>
+            <div className="control-note"><Keyboard size={16}/>{inputMode==="both"?"WASD와 방향키 모두 사용 가능":inputMode==="wasd"?"W / A / S / D 입력만 허용":"↑ / ↓ / ← / → 입력만 허용"} · 설정은 자동 저장됩니다.</div>
+          </div>
+          <div className="settings-section danger-zone"><div className="settings-heading"><div><span className="section-index">DATA MANAGEMENT / 05</span><h2>LOCAL DATA</h2><p>Remove saved settings, loadout, and records from this browser.</p></div></div><button className="btn btn-danger" onClick={()=>{if(window.confirm("모든 설정, 선택 목록, 기록을 초기화할까요?")){setRecords({});setDestinyBestScore(0);setCompletedTrainingCount(0);setHelldiverName("HELLDIVER");setSelected(stratagems.map(s=>s.id));setTrainingCount(10);setCountDraft("10");setTheme("earth");setSoundEnabled(false);setAnimationEnabled(true);setInputMode("both");}}}><RotateCcw size={15}/> 전체 데이터 초기화</button></div>
         </section>}
       </main>
     </div>
