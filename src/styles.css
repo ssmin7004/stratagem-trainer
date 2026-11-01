@@ -291,56 +291,62 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media(max-width:850px){.input-mode-grid{grid-template-columns:1fr}.input-mode-card{min-height:125px}}
 
 
-/* 2.9.0 category accordion */
-.version-trigger{border:0;background:transparent;font:inherit;cursor:pointer;padding:8px 0;color:var(--muted)}
-.version-trigger:hover{color:var(--accent)}
-.version-hint{font-size:12px;color:var(--accent);margin-left:-5px}
-.loadout-toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-.loadout-toolbar .search-box{flex:1 1 260px}
-.category-accordion-list{display:flex;flex-direction:column;gap:10px;margin:14px 0 22px}
-.category-accordion{border:1px solid var(--line);background:rgba(28,29,31,.72);overflow:hidden}
-.category-accordion-head{width:100%;display:flex;align-items:center;gap:12px;padding:17px 18px;background:transparent;color:var(--text);border:0;text-align:left;cursor:pointer}
-.category-accordion-head:hover{background:rgba(255,255,255,.025)}
-.category-accordion-name{font-weight:800;letter-spacing:.2px;display:flex;align-items:center;gap:11px}
-.category-accordion-name i{width:4px;height:19px;border-radius:3px;background:var(--category-color);display:inline-block}
-.category-accordion-count{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
-.accordion-chevron{width:17px;height:17px;color:var(--muted);transition:transform .18s}
-.accordion-chevron.open{transform:rotate(90deg);color:var(--accent)}
-.category-accordion-공격{--category-color:#DE7B6C}
-.category-accordion-지원{--category-color:#49ADC9}
-.category-accordion-방어{--category-color:#679552}
-.category-accordion-임무{--category-color:#C9B269}
-.category-accordion-body{border-top:1px solid var(--line);padding:13px}
-.category-accordion-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 13px;color:var(--muted);font-size:11px}
-.category-accordion-tools div{display:flex;gap:7px;flex-wrap:wrap}
-.category-accordion-tools button{background:transparent;border:1px solid var(--line);color:var(--text);padding:6px 9px;font-size:11px;cursor:pointer}
-.category-accordion-tools button:hover{border-color:var(--accent);color:var(--accent)}
-.category-accordion-body .stratagem-grid{padding-bottom:5px}
-.empty-category{color:var(--muted);font-size:13px;padding:12px 4px}
-.theme-grid{grid-template-columns:minmax(0,1fr)}
-.theme-grid .theme-card{max-width:360px;flex-direction:row;align-items:center;min-height:76px}
-.theme-grid .swatch-preview{width:90px;flex:0 0 90px}
-.version-modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:22px;backdrop-filter:blur(5px)}
-.version-modal{width:min(590px,100%);max-height:min(85vh,780px);overflow:auto;background:#17191a;border:1px solid rgba(255,233,0,.35);box-shadow:0 24px 90px rgba(0,0,0,.6);padding:25px;color:#e6e6df}
-.version-modal-top{display:flex;justify-content:space-between;align-items:center;color:#aaa;font-size:9px;letter-spacing:1.6px;border-bottom:1px solid #343638;padding-bottom:14px}
-.version-modal-top button{background:transparent;border:0;color:#aaa;cursor:pointer;padding:4px}
-.version-modal-kicker{margin-top:24px;color:#d7c64a;font-size:9px;letter-spacing:2px}
-.version-modal h2{font-size:21px;letter-spacing:.6px;margin:9px 0 4px}
-.version-modal h2 em{color:#ffe900;font-style:normal}
-.version-modal-intro{color:#929596;font-size:12px;margin:0 0 18px}
-.version-release{border-top:1px solid #343638;padding:15px 0}
-.version-release-head{display:flex;align-items:center;gap:10px}
-.version-release-head strong{font-size:15px;color:#f0e8a1}
-.version-release-head span{font-size:10px;color:#ffe900;border:1px solid rgba(255,233,0,.35);padding:3px 7px}
-.version-release ul{margin:9px 0 0;padding-left:18px;color:#c0c3c1;font-size:12px;line-height:1.9}
-.version-modal-confirm{width:100%;min-height:42px;margin-top:9px;background:#ffe900;color:#111;border:0;font-weight:800;cursor:pointer}
-@media(max-width:760px){
- .category-accordion-head{padding:14px 12px}
- .category-accordion-body{padding:9px}
- .category-accordion-tools{align-items:flex-start;flex-direction:column}
- .version-modal{padding:19px}
- .version-modal h2{font-size:17px}
- .version-trigger{font-size:8px;gap:6px}
+/* V2.9.1: compact version-only action and grouped loadout list */
+.version-trigger{
+  appearance:none;border:1px solid rgba(255,233,0,.18);background:#171819;color:var(--accent);
+  border-radius:7px;padding:4px 8px;font:inherit;font-size:10px;font-weight:800;letter-spacing:.35px;
+  line-height:1;white-space:nowrap;cursor:pointer;transition:background .16s,border-color .16s,transform .16s;
 }
-.custom-count-row button{white-space:nowrap;flex-shrink:0;min-width:46px;padding-left:12px;padding-right:12px}
-.custom-count-row .clear-count{min-width:40px;width:40px;padding:0}
+.version-trigger span{font-size:10px;margin-left:3px}
+.version-trigger:hover{background:rgba(255,233,0,.1);border-color:rgba(255,233,0,.55);transform:translateY(-1px)}
+.version-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.loadout-toolbar{flex-wrap:wrap}
+.catalog-count{margin-left:auto;color:var(--muted);font-size:10px;letter-spacing:.6px;white-space:nowrap}
+.category-accordion-list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+.category-accordion{border:1px solid var(--line);background:rgba(255,255,255,.018);border-radius:9px;overflow:hidden}
+.category-accordion-trigger{width:100%;min-height:58px;display:flex;align-items:center;gap:14px;padding:0 18px;border:0;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.category-accordion-trigger:hover{background:rgba(255,255,255,.035)}
+.category-accordion-title{display:flex;align-items:center;gap:10px;min-width:0}
+.category-accordion-title strong{font-size:13px;font-weight:700}
+.category-color-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:0 0 auto}
+.category-accordion.category-공격 .category-color-dot{background:#DE7B6C}
+.category-accordion.category-지원 .category-color-dot{background:#49ADC9}
+.category-accordion.category-방어 .category-color-dot{background:#679552}
+.category-accordion.category-임무 .category-color-dot{background:#C9B269}
+.category-accordion-meta{margin-left:auto;color:var(--muted);font-size:10px;letter-spacing:.6px;white-space:nowrap}
+.accordion-chevron{color:var(--muted);transition:transform .18s}
+.accordion-chevron.open{transform:rotate(180deg)}
+.category-accordion-content{border-top:1px solid var(--line);padding:13px}
+.category-accordion-actions{display:flex;align-items:center;gap:14px;padding:0 3px 13px;color:var(--muted);font-size:10px}
+.category-accordion-actions span{margin-right:auto}
+.category-accordion-actions button{border:0;background:transparent;color:var(--accent);font:inherit;cursor:pointer;padding:4px 2px}
+.category-accordion-actions button:hover{text-decoration:underline}
+.category-accordion-content .stratagem-grid{margin:0}
+.version-modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.version-modal{width:min(100%,480px);max-height:min(85vh,680px);overflow:auto;background:#17191a;border:1px solid rgba(255,233,0,.24);border-radius:12px;padding:24px;box-shadow:0 24px 80px rgba(0,0,0,.55);color:var(--text)}
+.version-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px}
+.version-modal-head h2{margin:8px 0 0;font-size:22px;letter-spacing:1px}
+.version-modal-head h2 em{font-style:normal;color:var(--accent)}
+.version-modal-close{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--muted);cursor:pointer}
+.version-modal-close:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.version-current{display:flex;align-items:center;gap:9px;padding:11px 13px;background:rgba(255,233,0,.055);border:1px solid rgba(255,233,0,.13);border-radius:7px;color:var(--muted);font-size:9px;letter-spacing:1px}
+.version-current strong{margin-left:auto;color:var(--accent);font-size:12px}
+.version-release{padding:18px 2px;border-bottom:1px solid var(--line)}
+.version-release-title{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.version-release-title strong{font-size:13px;color:var(--accent)}
+.version-release-title span{font-size:10px;color:var(--muted)}
+.version-release ul{padding-left:18px;margin:12px 0 0;color:#c6c8c8;font-size:11px;line-height:1.9}
+.version-release p{font-size:11px;color:var(--muted);margin:9px 0 0}
+.version-release.previous{margin-bottom:18px}
+@media(max-width:700px){
+  .top-status{gap:7px;font-size:8px;letter-spacing:.4px}
+  .version-trigger{font-size:9px;padding:4px 6px}
+  .category-accordion-trigger{padding:0 12px;gap:8px}
+  .category-accordion-title strong{font-size:12px}
+  .category-accordion-meta{font-size:9px}
+  .category-accordion-content{padding:9px}
+  .category-accordion-actions{gap:9px;flex-wrap:wrap}
+  .category-accordion-actions span{width:100%}
+  .catalog-count{margin-left:0}
+  .version-modal{padding:18px}
+}

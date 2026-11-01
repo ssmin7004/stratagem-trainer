@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Check,
-  ChevronRight, Crosshair, Gauge, Keyboard, ListChecks, Medal, Pause,
+  ChevronRight, ChevronDown, Crosshair, Gauge, Keyboard, ListChecks, Medal, Pause,
   Play, RotateCcw, Settings, Shield, SkipForward, Sparkles, Trophy, Volume2,
   VolumeX, X, Zap
 } from "lucide-react";
@@ -10,7 +10,7 @@ import { arrow, categories, keyFor, stratagems, type Direction, type Stratagem }
 type Page = "home" | "training" | "loadout" | "records" | "settings";
 type Mode = "normal" | "destiny";
 type GameState = "idle" | "countdown" | "playing" | "paused" | "result" | "finished";
-type Theme = "earth";
+type Theme = "earth" | "olive" | "crimson" | "arctic";
 type InputMode = "both" | "wasd" | "arrows";
 type RecordItem = {
   stratagemId: string; bestTime: number; bestAccuracy: number; bestErrorCount: number;
@@ -19,7 +19,7 @@ type RecordItem = {
 };
 
 const STORAGE_KEY = "stratagem-trainer-v1";
-const themeNames: Record<Theme,string> = { earth:"SUPER EARTH" };
+const themeNames: Record<Theme,string> = { earth:"SUPER EARTH", olive:"MILITARY OLIVE", crimson:"CRIMSON ALERT", arctic:"ARCTIC SUPPORT" };
 const keyGlyph: Record<Direction, string> = { UP:"W", DOWN:"S", LEFT:"A", RIGHT:"D" };
 const initialSettings = { theme:"earth" as Theme, soundEnabled:false, animationEnabled:true, inputMode:"both" as InputMode };
 
@@ -42,11 +42,15 @@ function App() {
   const [page,setPage] = useState<Page>("home");
   const [mode,setMode] = useState<Mode>("normal");
   const [trainingMenuOpen,setTrainingMenuOpen] = useState(false);
-  const [theme,setTheme] = useState<Theme>("earth");
+  const [theme,setTheme] = useState<Theme>(saved.settings?.theme || "earth");
   const [soundEnabled,setSoundEnabled] = useState<boolean>(saved.settings?.soundEnabled ?? false);
   const [animationEnabled,setAnimationEnabled] = useState<boolean>(saved.settings?.animationEnabled ?? true);
   const [inputMode,setInputMode] = useState<InputMode>(saved.settings?.inputMode === "wasd" || saved.settings?.inputMode === "arrows" ? saved.settings.inputMode : "both");
-  const [selected,setSelected] = useState<string[]>(saved.selectedStratagems ? [...new Set([...saved.selectedStratagems,...stratagems.filter(s=>!saved.selectedStratagems.includes(s.id)).map(s=>s.id)])] : stratagems.map(s=>s.id));
+  const [selected,setSelected] = useState<string[]>(saved.selectedStratagems
+    ? (saved.catalogVersion >= 2 ? saved.selectedStratagems : Array.from(new Set([...saved.selectedStratagems, ...stratagems.map(s=>s.id)])))
+    : stratagems.map(s=>s.id));
+  const [versionModalOpen,setVersionModalOpen] = useState(false);
+  const [openCategories,setOpenCategories] = useState<string[]>([]);
   const savedTrainingCount = Number.isSafeInteger(saved.trainingCount) && saved.trainingCount > 0 && saved.trainingCount <= 9999 ? saved.trainingCount : 10;
   const [trainingCount,setTrainingCount] = useState<number>(savedTrainingCount);
   const [countDraft,setCountDraft] = useState<string>(String(savedTrainingCount));
@@ -58,8 +62,6 @@ function App() {
   const completionRecordedRef = useRef(false);
   const [search,setSearch] = useState("");
   const [categoryFilter,setCategoryFilter] = useState("ALL");
-  const [expandedCategories,setExpandedCategories] = useState<string[]>([]);
-  const [showVersionModal,setShowVersionModal] = useState(false);
   const [sort,setSort] = useState<"name"|"time">("name");
   const [activeId,setActiveId] = useState(stratagems[0].id);
   const [gameState,setGameState] = useState<GameState>("idle");
@@ -106,6 +108,13 @@ function App() {
   };
 
   useEffect(()=>{
+    if(!versionModalOpen) return;
+    const onKeyDown=(event:KeyboardEvent)=>{ if(event.key==="Escape") setVersionModalOpen(false); };
+    window.addEventListener("keydown",onKeyDown);
+    return ()=>window.removeEventListener("keydown",onKeyDown);
+  },[versionModalOpen]);
+
+  useEffect(()=>{
     const mobileUA = /Android|iPhone|iPod|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent);
     const iPadOS = /Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
     const compactTouchDevice = navigator.maxTouchPoints > 1 && window.matchMedia("(max-width: 900px)").matches;
@@ -117,7 +126,7 @@ function App() {
 
   useEffect(()=>{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      settings:{theme,soundEnabled,animationEnabled,inputMode}, selectedStratagems:selected, trainingCount, records, destinyBestScore, completedTrainingCount, helldiverName
+      settings:{theme,soundEnabled,animationEnabled,inputMode}, selectedStratagems:selected, catalogVersion:2, trainingCount, records, destinyBestScore, completedTrainingCount, helldiverName
     }));
   },[theme,soundEnabled,animationEnabled,inputMode,selected,trainingCount,records,destinyBestScore,completedTrainingCount,helldiverName]);
 
@@ -305,12 +314,16 @@ function App() {
   };
   const restart=()=>beginRun(available.map(s=>s.id),mode);
   const filtered = stratagems.filter(s=>
-    (s.name.toLowerCase().includes(search.toLowerCase())||s.category.toLowerCase().includes(search.toLowerCase()))
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
+    s.category.toLowerCase().includes(search.toLowerCase()) ||
+    s.description.toLowerCase().includes(search.toLowerCase())
   ).sort((a,b)=>sort==="name"?a.name.localeCompare(b.name):((records[a.id]?.bestTime??Infinity)-(records[b.id]?.bestTime??Infinity)));
+  const toggleCategoryOpen=(category:string)=>setOpenCategories(prev=>prev.includes(category)?prev.filter(c=>c!==category):[...prev,category]);
+  const toggleCategorySelection=(category:string, selectAll:boolean)=>{
+    const ids=stratagems.filter(s=>s.category===category).map(s=>s.id);
+    setSelected(prev=>selectAll?Array.from(new Set([...prev,...ids])):prev.filter(id=>!ids.includes(id)));
+  };
   const toggleSelected=(id:string)=>setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
-  const toggleCategory=(category:string)=>setExpandedCategories(prev=>prev.includes(category)?prev.filter(x=>x!==category):[...prev,category]);
-  const selectCategory=(category:string)=>setSelected(prev=>[...new Set([...prev,...stratagems.filter(s=>s.category===category).map(s=>s.id)])]);
-  const clearCategory=(category:string)=>setSelected(prev=>prev.filter(id=>!stratagems.some(s=>s.id===id&&s.category===category)));
   const navItems:[Page,string,any][]=[
     ["home","작전 본부",Shield],["loadout","훈련 목록",ListChecks],["records","전적 기록",Trophy],["settings","설정",Settings]
   ];
@@ -320,13 +333,6 @@ function App() {
     beginRun(available.map(s=>s.id),nextMode);
   };
 
-  useEffect(()=>{
-    if(!showVersionModal) return;
-    const onKeyDown=(event:KeyboardEvent)=>{if(event.key==="Escape")setShowVersionModal(false);};
-    window.addEventListener("keydown",onKeyDown);
-    return ()=>window.removeEventListener("keydown",onKeyDown);
-  },[showVersionModal]);
-
   return <div className={`app theme-${theme} ${animationEnabled?"motion-on":"motion-off"}`}>
     <div className="scanlines"/>
     <header className="topbar">
@@ -334,7 +340,7 @@ function App() {
         <div className="brand-mark"><Shield size={22}/></div>
         <div><div className="brand-title">STRATAGEM<span> / </span>TRAINER</div><div className="brand-sub">SUPER EARTH TACTICAL TRAINING DIVISION</div></div>
       </div>
-      <button className="top-status version-trigger" onClick={()=>setShowVersionModal(true)} aria-label="버전 및 업데이트 내역 보기"><span className="status-dot"/> 시스템 가동 중 <span className="top-divider"/> PC 훈련 버전 <span className="top-divider"/> V2.9.0 <span className="version-hint">ⓘ</span></button>
+      <div className="top-status"><span className="status-dot"/> 시스템 가동 중 <span className="top-divider"/> PC 훈련 버전 <span className="top-divider"/> <button type="button" className="version-trigger" onClick={()=>setVersionModalOpen(true)} aria-label="버전 및 업데이트 내역 보기">V2.9.1 <span aria-hidden="true">↗</span></button></div>
     </header>
 
     <div className="shell">
@@ -490,32 +496,34 @@ function App() {
           <div className="toolbar loadout-toolbar">
             <div className="search-box"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="스트라타젬 검색..."/></div>
             <button className="btn btn-small btn-secondary" onClick={()=>setSelected(stratagems.map(s=>s.id))}>전체 선택</button>
-            <button className="btn btn-small btn-quiet" onClick={()=>setSelected([])}>전체 해제</button>
+            <button className="btn btn-small btn-quiet" onClick={()=>setSelected([])}>선택 해제</button>
+            <span className="catalog-count">{filtered.length} / {stratagems.length} 항목</span>
           </div>
-          <div className="category-accordion-list">
-            {categories.map(category=>{
-              const items=filtered.filter(s=>s.category===category);
-              const selectedCount=items.filter(s=>selected.includes(s.id)).length;
-              const expanded=expandedCategories.includes(category);
-              return <section className={`category-accordion category-accordion-${category}`} key={category}>
-                <button className="category-accordion-head" onClick={()=>toggleCategory(category)} aria-expanded={expanded}>
-                  <span className="category-accordion-name"><i/>{category} 스트라타젬</span>
-                  <span className="category-accordion-count">{selectedCount}/{items.length} 선택</span>
-                  <ChevronRight className={expanded?"accordion-chevron open": "accordion-chevron"}/>
-                </button>
-                {expanded&&<div className="category-accordion-body">
-                  <div className="category-accordion-tools">
-                    <span>{items.length}개 항목{search?` · 검색 결과`:""}</span>
-                    <div><button onClick={()=>selectCategory(category)}>이 분류 전체 선택</button><button onClick={()=>clearCategory(category)}>이 분류 해제</button></div>
-                  </div>
-                  {items.length===0?<p className="empty-category">검색 결과가 없습니다.</p>:<div className="stratagem-grid">{items.map(s=><button key={s.id} className={`stratagem-card type-${s.category} ${selected.includes(s.id)?"selected":""}`} onClick={()=>toggleSelected(s.id)}>
-                    <div className="card-top"><span className="card-icon">{s.icon}</span><span className={`check-box ${selected.includes(s.id)?"checked":""}`}>{selected.includes(s.id)&&<Check size={13}/>}</span></div>
-                    <span className={`card-category category-${s.category}`}>{s.category} 스트라타젬</span><strong>{s.name}</strong><div className="card-bottom"><span>{s.sequence.map(d=>arrow[d]).join(" ")}</span><span className="card-record">{records[s.id]?`${formatTime(records[s.id].bestTime)}s`:"NO RECORD"}</span></div>
-                  </button>)}</div>}
-                </div>}
-              </section>;
-            })}
-          </div>
+          <div className="category-accordion-list">{categories.map(category=>{
+            const items=filtered.filter(s=>s.category===category);
+            if(!items.length) return null;
+            const selectedCount=stratagems.filter(s=>s.category===category&&selected.includes(s.id)).length;
+            const totalCount=stratagems.filter(s=>s.category===category).length;
+            const isOpen=openCategories.includes(category);
+            return <section className={`category-accordion category-${category}`} key={category}>
+              <button type="button" className="category-accordion-trigger" onClick={()=>toggleCategoryOpen(category)} aria-expanded={isOpen}>
+                <span className="category-accordion-title"><span className="category-color-dot"/><strong>{category} 스트라타젬</strong></span>
+                <span className="category-accordion-meta">{selectedCount} / {totalCount} 선택</span>
+                <ChevronDown size={17} className={`accordion-chevron ${isOpen?"open":""}`}/>
+              </button>
+              {isOpen&&<div className="category-accordion-content">
+                <div className="category-accordion-actions">
+                  <span>{items.length}개 항목 표시</span>
+                  <button type="button" onClick={()=>toggleCategorySelection(category,true)}>이 종류 전체 선택</button>
+                  <button type="button" onClick={()=>toggleCategorySelection(category,false)}>이 종류 선택 해제</button>
+                </div>
+                <div className="stratagem-grid">{items.map(s=><button key={s.id} className={`stratagem-card type-${s.category} ${selected.includes(s.id)?"selected":""}`} onClick={()=>toggleSelected(s.id)}>
+                  <div className="card-top"><span className="card-icon">{s.icon}</span><span className={`check-box ${selected.includes(s.id)?"checked":""}`}>{selected.includes(s.id)&&<Check size={13}/>}</span></div>
+                  <span className={`card-category category-${s.category}`}>{s.category} 스트라타젬</span><strong>{s.name}</strong><div className="card-bottom"><span>{s.sequence.map(d=>arrow[d]).join(" ")}</span><span className="card-record">{records[s.id]?`${formatTime(records[s.id].bestTime)}s`:"NO RECORD"}</span></div>
+                </button>)}</div>
+              </div>}
+            </section>;
+          })}</div>
           <div className="sticky-action"><span>{selected.length} 개 스트라타젬 선택됨 FOR TRAINING</span><div className="sticky-buttons"><button className="btn btn-secondary" disabled={!selected.length} onClick={()=>chooseTrainingMode("normal")}><Crosshair size={15}/> 노멀 트레이닝 ({trainingCount}회)</button><button className="btn btn-primary" disabled={!selected.length} onClick={()=>chooseTrainingMode("destiny")}><Zap size={15}/> 데스티니 트레이닝 (30초)</button></div></div>
         </section>}
 
@@ -554,7 +562,7 @@ function App() {
             <div className="setting-current-count">현재 기본 출제 횟수 <strong>{trainingCount}회</strong></div>
           </div>
           <div className="settings-section"><div className="settings-heading"><div><span className="section-index">DISPLAY / 02</span><h2>색상 테마</h2><p>Select a Super Earth-inspired terminal palette.</p></div></div>
-            <div className="theme-grid"><div className="theme-card theme-swatch-earth chosen"><div className="swatch-preview"><i/><i/><i/></div><div><strong>{themeNames.earth}</strong><small>YELLOW / CHARCOAL · 기본 테마</small></div><Check size={17}/></div></div>
+            <div className="theme-grid">{(["earth","olive","crimson","arctic"] as Theme[]).map(t=><button key={t} className={`theme-card theme-swatch-${t} ${theme===t?"chosen":""}`} onClick={()=>setTheme(t)}><div className="swatch-preview"><i/><i/><i/></div><div><strong>{themeNames[t]}</strong><small>{t==="earth"?"YELLOW / CHARCOAL":t==="olive"?"OLIVE / GRAPHITE":t==="crimson"?"RED / BLACK":"ICE / NAVY"}</small></div>{theme===t&&<Check size={17}/>}</button>)}</div>
           </div>
           <div className="settings-section"><div className="settings-heading"><div><span className="section-index">FEEDBACK / 03</span><h2>TRAINING EXPERIENCE</h2><p>Adjust optional interface effects.</p></div></div>
             <div className="setting-row"><div className="setting-icon"><Volume2 size={19}/></div><div className="setting-copy"><strong>효과음</strong><small>Play feedback sounds for correct and incorrect inputs.</small></div><button className={`toggle ${soundEnabled?"on":""}`} onClick={()=>setSoundEnabled(v=>!v)} aria-label="Toggle sound"><i/></button></div>
@@ -579,15 +587,13 @@ function App() {
       </main>
     </div>
     <footer className="footer"><span>STRATAGEM TRAINER <b>•</b> FAN-MADE TRAINING PROJECT</span><span>본 프로젝트는 Arrowhead Game Studios 및 Sony와 무관한 팬 제작 프로젝트입니다.</span></footer>
-    {showVersionModal&&<div className="version-modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setShowVersionModal(false);}}>
+    {versionModalOpen&&<div className="version-modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setVersionModalOpen(false);}}>
       <section className="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-modal-title">
-        <div className="version-modal-top"><span>SUPER EARTH / RELEASE ARCHIVE</span><button onClick={()=>setShowVersionModal(false)} aria-label="닫기"><X size={18}/></button></div>
-        <div className="version-modal-kicker">CURRENT BUILD</div><h2 id="version-modal-title">STRATAGEM TRAINER <em>V2.9.0</em></h2>
-        <p className="version-modal-intro">훈련 시스템 업데이트 기록</p>
-        <div className="version-release current"><div className="version-release-head"><strong>V2.9.0</strong><span>현재 버전</span></div><ul><li>스트라타젬 목록을 카테고리별 접이식 목록으로 개편하고 신규 항목 추가</li><li>분류별 전체 선택 및 해제, 선택 개수 표시 추가</li><li>노멀 트레이닝 출제 횟수 입력 UI 개선</li><li>테마 설정을 기본 SUPER EARTH 테마로 통합</li><li>버전 정보 및 업데이트 내역 팝업 추가</li></ul></div>
-        <div className="version-release"><div className="version-release-head"><strong>V2.8.0</strong><span>이전 버전</span></div><ul><li>입력 방식 선택 및 버튼 UI 개선</li></ul></div>
-        <div className="version-release"><div className="version-release-head"><strong>V2.7.0</strong></div><ul><li>모바일 환경 안내 팝업 추가</li></ul></div>
-        <button className="version-modal-confirm" onClick={()=>setShowVersionModal(false)}>확인</button>
+        <div className="version-modal-head"><div><span className="section-index">SYSTEM UPDATE / CHANGELOG</span><h2 id="version-modal-title">VERSION <em>2.9.1</em></h2></div><button type="button" className="version-modal-close" onClick={()=>setVersionModalOpen(false)} aria-label="닫기"><X size={18}/></button></div>
+        <div className="version-current"><span className="status-dot"/> CURRENT VERSION <strong>V2.9.1</strong></div>
+        <div className="version-release"><div className="version-release-title"><strong>V2.9.1</strong><span>2026.11.01</span></div><ul><li>상단 버전 표시 영역에서 버전 버튼만 클릭 가능하도록 분리</li><li>스트라타젬 데이터베이스 111개 항목으로 확장</li><li>훈련 목록을 종류별 접기 및 펼치기 구조로 개선</li><li>카테고리별 전체 선택 및 해제 기능 추가</li><li>기존 훈련 기록 및 선택 설정 호환성 유지</li></ul></div>
+        <div className="version-release previous"><div className="version-release-title"><strong>V2.8.0</strong><span>이전 버전</span></div><p>입력 방식 선택 및 버튼 UI 개선</p></div>
+        <button type="button" className="btn btn-primary full-width" onClick={()=>setVersionModalOpen(false)}>확인</button>
       </section>
     </div>}
     {notice&&<div className="toast" onClick={()=>setNotice("")}>{notice}<X size={14}/></div>}
